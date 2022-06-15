@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/c409ef55500d4779ae9fbfd4f29fd38f/artifacts
+end_time: 1655230950013
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+name: ''
+run_id: c409ef55500d4779ae9fbfd4f29fd38f
+run_uuid: c409ef55500d4779ae9fbfd4f29fd38f
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1655230949409
+status: 3
+tags: []
+user_id: zohair

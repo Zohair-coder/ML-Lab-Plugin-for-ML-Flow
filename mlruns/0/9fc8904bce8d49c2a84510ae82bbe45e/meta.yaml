@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/zohair/SAP/mlflow/plugin/mlflow-test-plugin/mlruns/0/9fc8904bce8d49c2a84510ae82bbe45e/artifacts
+end_time: 1654192802144
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+name: ''
+run_id: 9fc8904bce8d49c2a84510ae82bbe45e
+run_uuid: 9fc8904bce8d49c2a84510ae82bbe45e
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1654192784395
+status: 3
+tags: []
+user_id: zohair
