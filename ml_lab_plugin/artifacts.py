@@ -56,6 +56,7 @@ class MlLabArtifactRepository(ArtifactRepository):
         files = self.file_client.list_files(project_id=self.project_id, prefix=path)
         infos = []
         for file in files:
+            print(file.name)
             info = FileInfo(file.name, False, file.file_size)
             infos.append(info)
         return infos
