@@ -31,15 +31,15 @@ if __name__ == "__main__":
     with mlflow.start_run() as run:
         mlflow.log_artifacts("outputs", artifact_path="features")
 
-    # client = MlflowClient()
-    # artifacts = client.list_artifacts(run.info.run_id, "features")
-    # print("Artifacts: {}".format(artifacts))
+    client = MlflowClient()
+    artifacts = client.list_artifacts(run.info.run_id, "features")
+    print("Artifacts: {}".format(artifacts))
 
     # Download artifacts
-    client = MlflowClient()
-    local_dir = "./downloaded_artifacts"
-    if not os.path.exists(local_dir):
-        os.mkdir(local_dir)
-    local_path = client.download_artifacts(run.info.run_id, "features", local_dir)
-    print("Artifacts downloaded in: {}".format(local_path))
-    print("Artifacts: {}".format(os.listdir(local_path)))
+    # client = MlflowClient()
+    # local_dir = "./downloaded_artifacts"
+    # if not os.path.exists(local_dir):
+    #     os.mkdir(local_dir)
+    # local_path = client.download_artifacts(run.info.run_id, "features", local_dir)
+    # print("Artifacts downloaded in: {}".format(local_path))
+    # print("Artifacts: {}".format(os.listdir(local_path)))
