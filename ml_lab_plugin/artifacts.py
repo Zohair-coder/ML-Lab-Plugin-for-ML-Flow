@@ -12,10 +12,7 @@ class MlLabArtifactRepository(ArtifactRepository):
     is_plugin = True
 
     def __init__(self, artifact_uri):
-        print("==============================")
-        print("Initialized!")
-        print("Artifact URI: {}".format(artifact_uri))
-        print("==============================")
+        # TODO: find a solution for not hardcoding the url and token
         url = "https://ls6415.wdf.sap.corp:8076/api"
         session = BaseUrlSession(base_url=url)
         token = "32e01d515de63d015e71c2885e968493edbc672f"
