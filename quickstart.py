@@ -16,9 +16,12 @@ if __name__ == "__main__":
     # mlflow.log_metric("foo", random() + 1)
     # mlflow.log_metric("foo", random() + 2)
 
-    
     if not os.path.exists("outputs"):
         os.makedirs("outputs")
+
+    if not os.path.exists("outputs/new_folder"):
+        os.makedirs("outputs/new_folder")
+
     with open("outputs/test.txt", "w") as f:
         f.write("hello world!")
 
@@ -31,15 +34,19 @@ if __name__ == "__main__":
     with mlflow.start_run() as run:
         mlflow.log_artifacts("outputs", artifact_path="features")
 
+    # List artifacts
     client = MlflowClient()
     artifacts = client.list_artifacts(run.info.run_id, "features")
-    print("Artifacts: {}".format(artifacts))
+    print(artifacts)
+    for artifact in artifacts:
+        print(artifact.path)
 
     # Download artifacts
-    # client = MlflowClient()
-    # local_dir = "./downloaded_artifacts"
-    # if not os.path.exists(local_dir):
-    #     os.mkdir(local_dir)
-    # local_path = client.download_artifacts(run.info.run_id, "features", local_dir)
-    # print("Artifacts downloaded in: {}".format(local_path))
-    # print("Artifacts: {}".format(os.listdir(local_path)))
+    client = MlflowClient()
+    local_dir = "./downloaded_artifacts"
+    if not os.path.exists(local_dir):
+        os.mkdir(local_dir)
+    local_path = client.download_artifacts(
+        run.info.run_id, "features", local_dir)
+    print("Artifacts downloaded in: {}".format(local_path))
+    print("Artifacts: {}".format(os.listdir(local_path)))
