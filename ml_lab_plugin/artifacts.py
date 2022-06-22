@@ -23,10 +23,6 @@ class MlLabArtifactRepository(ArtifactRepository):
         self.file_client = file_client
 
     def log_artifact(self, local_file, artifact_path=None):
-        print("==============================")
-        print("Logging artifact: {}".format(local_file))
-        print("Artifact path: {}".format(artifact_path))
-        print("==============================")
         verify_artifact_path(artifact_path)
         file_name = os.path.basename(local_file)
         artifact_path = os.path.join(artifact_path, file_name)
@@ -54,9 +50,6 @@ class MlLabArtifactRepository(ArtifactRepository):
                 self.log_artifact(os.path.join(root, f), artifact_dir)
 
     def list_artifacts(self, path):
-        print("==============================")
-        print("Listing artifacts: {}".format(path))
-        print("==============================")
         # NOTE: The path is expected to be in posix format.
         # Posix paths work fine on windows but just in case we normalize it here.
         if path:
@@ -77,10 +70,6 @@ class MlLabArtifactRepository(ArtifactRepository):
         return infos
 
     def _download_file(self, remote_file_path, local_path):
-        print("==============================")
-        print("Downloading file: {}".format(remote_file_path))
-        print("Local path: {}".format(local_path))
-        print("==============================")
         stream = self.file_client.download_file(
             project_id=self.project_id, file_key=remote_file_path)
         with open(local_path, "wb") as f:
