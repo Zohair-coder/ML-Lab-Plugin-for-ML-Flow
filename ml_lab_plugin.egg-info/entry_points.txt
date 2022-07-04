@@ -1,6 +1,5 @@
 [mlflow.artifact_repository]
-ml-lab=ml_lab_plugin.artifacts:MlLabArtifactRepository
+ml-lab = ml_lab_plugin.artifacts:MlLabArtifactRepository
 
 [mlflow.tracking_store]
-ml-lab=ml_lab_plugin.tracking_store:MlLabTrackingStore
-
+ml-lab = ml_lab_plugin.tracking_store:MlLabTrackingStore

@@ -5,6 +5,24 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Python: ML Flow Server",
+      "type": "python",
+      "request": "launch",
+      "program": "/opt/homebrew/bin/mlflow",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "args": [
+        "server",
+        "--backend-store-uri",
+        "ml-lab:/test/route",
+        "--default-artifact-root",
+        "ml-lab:/test/route",
+        "--serve-artifacts",
+        "--port",
+        "5001"
+      ]
+    },
+    {
       "name": "Python: quickstart.py",
       "type": "python",
       "request": "launch",
