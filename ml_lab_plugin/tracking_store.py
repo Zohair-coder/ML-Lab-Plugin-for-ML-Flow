@@ -28,6 +28,8 @@ from mlflow.utils.validation import (
     _validate_batch_log_limits,
     _validate_param_keys_unique
 )
+from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD
+
 from contaxy.clients import JsonDocumentClient
 from contaxy.clients.shared import BaseUrlSession
 from contaxy.schema.exceptions import ResourceNotFoundError
@@ -312,10 +314,12 @@ class MlLabTrackingStore(AbstractStore):
             return []
 
         response_json = json.loads(response.json_value)
+        if type(response_json) == dict:
+            response_json = [response_json]
         metrics = []
         for metric in response_json:
-            metrics.append(Metric(metric.key, metric.value,
-                           metric.timestamp, metric.step))
+            metrics.append(Metric(metric["key"], metric["value"],
+                           metric["timestamp"], metric["step"]))
         return metrics
 
     def _get_all_params(self, run_info: RunInfo) -> List[Param]:
@@ -326,9 +330,11 @@ class MlLabTrackingStore(AbstractStore):
             return []
 
         response_json = json.loads(response.json_value)
+        if type(response_json) == dict:
+            response_json = [response_json]
         params = []
         for param in response_json:
-            params.append(Param(param.key, param.value))
+            params.append(Param(param["key"], param["value"]))
         return params
 
     def _get_all_tags(self, run_info: RunInfo) -> List[RunTag]:
@@ -339,9 +345,11 @@ class MlLabTrackingStore(AbstractStore):
             return []
 
         response_json = json.loads(response.json_value)
+        if type(response_json) == dict:
+            response_json = [response_json]
         tags = []
         for tag in response_json:
-            tags.append(RunTag(tag.key, tag.value))
+            tags.append(RunTag(tag["key"], tag["value"]))
         return tags
 
     def _get_run_info(self, run_uuid):
@@ -443,8 +451,43 @@ class MlLabTrackingStore(AbstractStore):
     def _search_runs(self, experiment_ids, filter_string, run_view_type, max_results, order_by, page_token):
         print("==============================")
         print("Searching runs")
+        print("Experiment IDs: {}".format(experiment_ids))
+        print("Filter string: {}".format(filter_string))
+        print("Run view type: {}".format(run_view_type))
+        print("Max results: {}".format(max_results))
+        print("Order by: {}".format(order_by))
+        print("Page token: {}".format(page_token))
         print("==============================")
-        return None
+
+        from mlflow.utils.search_utils import SearchUtils
+
+        if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
+            raise MlflowException(
+                "Invalid value for request parameter max_results. It must be at "
+                "most {}, but got value {}".format(
+                    SEARCH_MAX_RESULTS_THRESHOLD, max_results),
+                databricks_pb2.INVALID_PARAMETER_VALUE,
+            )
+        runs = []
+        for experiment_id in experiment_ids:
+            run_infos = self._list_run_infos(experiment_id, run_view_type)
+            runs.extend(self._get_run_from_info(r) for r in run_infos)
+        filtered = SearchUtils.filter(runs, filter_string)
+        sorted_runs = SearchUtils.sort(filtered, order_by)
+        runs, next_page_token = SearchUtils.paginate(
+            sorted_runs, page_token, max_results)
+        return runs, next_page_token
+
+    def _list_run_infos(self, experiment_id, view_type):
+        response = self.json_client.list_json_documents(
+            self.project_id, "runs")
+        runs = []
+        for json_document in response:
+            run_info = RunInfo.from_dictionary(
+                json.loads(json_document.json_value))
+            if run_info.experiment_id == experiment_id and LifecycleStage.matches_view_type(view_type, run_info.lifecycle_stage):
+                runs.append(run_info)
+        return runs
 
     def log_batch(self, run_id, metrics, params, tags):
         print("==============================")
