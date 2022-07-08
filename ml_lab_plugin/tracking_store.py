@@ -1,49 +1,37 @@
-from typing import List
-from urllib import response
-from mlflow.store.tracking.abstract_store import AbstractStore
-from mlflow.entities import (
-    Run,
-    Experiment,
-    ViewType,
-    RunInfo,
-    RunStatus,
-    RunData,
-    Param,
-    Metric,
-    RunTag
-)
-from mlflow.entities.lifecycle_stage import LifecycleStage
-from mlflow.entities.run_info import check_run_is_active, check_run_is_deleted
-from mlflow.utils.uri import append_to_uri_path
-import mlflow.protos.databricks_pb2 as databricks_pb2
-from mlflow.exceptions import MlflowException, MissingConfigException
-from mlflow.utils.validation import (
-    _validate_experiment_id,
-    _validate_experiment_name,
-    _validate_metric_name,
-    _validate_list_experiments_max_results,
-    _validate_tag_name,
-    _validate_run_id,
-    _validate_batch_log_data,
-    _validate_batch_log_limits,
-    _validate_param_keys_unique
-)
-from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD
+import json
+import logging
+import uuid
+from typing import Optional
 
+import mlflow.protos.databricks_pb2 as databricks_pb2
 from contaxy.clients import JsonDocumentClient
 from contaxy.clients.shared import BaseUrlSession
 from contaxy.schema.exceptions import ResourceNotFoundError
-from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, INTERNAL_ERROR
-
-import json
-import uuid
-import logging
+from mlflow.entities import (Experiment, ExperimentTag, Metric, Param, Run,
+                             RunData, RunInfo, RunStatus, RunTag, ViewType)
+from mlflow.entities.lifecycle_stage import LifecycleStage
+from mlflow.entities.run_info import check_run_is_active
+from mlflow.exceptions import MissingConfigException, MlflowException
+from mlflow.protos.databricks_pb2 import (INTERNAL_ERROR)
+from mlflow.store.entities.paged_list import PagedList
+from mlflow.store.tracking import SEARCH_MAX_RESULTS_THRESHOLD
+from mlflow.store.tracking.abstract_store import AbstractStore
+from mlflow.utils.search_utils import SearchUtils
+from mlflow.utils.uri import append_to_uri_path
+from mlflow.utils.validation import (_validate_batch_log_data,
+                                     _validate_batch_log_limits,
+                                     _validate_experiment_id,
+                                     _validate_experiment_name,
+                                     _validate_list_experiments_max_results,
+                                     _validate_metric_name,
+                                     _validate_param_keys_unique,
+                                     _validate_run_id, _validate_tag_name)
 
 
 class MlLabTrackingStore(AbstractStore):
     DEFAULT_EXPERIMENT_ID = "0"
 
-    def __init__(self, store_uri=None, artifact_uri=None):
+    def __init__(self, store_uri: str = None, artifact_uri: str = None) -> None:
         print("==============================")
         print("Initialized Tracking Store!")
         print("Store URI: {}".format(store_uri))
@@ -61,9 +49,7 @@ class MlLabTrackingStore(AbstractStore):
         self.project_id = "2vnuohppfsxosjab4uzqge798"
         self.json_client = json_client
 
-    def list_experiments(self, view_type=ViewType.ACTIVE_ONLY, max_results=None, page_token=None):
-        from mlflow.utils.search_utils import SearchUtils
-        from mlflow.store.entities.paged_list import PagedList
+    def list_experiments(self, view_type: ViewType = ViewType.ACTIVE_ONLY, max_results: int = None, page_token: bytes = None) -> PagedList:
         _validate_list_experiments_max_results(max_results)
         rsl = []
         if view_type == ViewType.ACTIVE_ONLY or view_type == ViewType.ALL:
@@ -94,7 +80,7 @@ class MlLabTrackingStore(AbstractStore):
         else:
             return PagedList(experiments, None)
 
-    def _get_active_experiments(self):
+    def _get_active_experiments(self) -> list[str]:
         json_docs = self.json_client.list_json_documents(
             self.project_id, "experiments")
 
@@ -106,7 +92,7 @@ class MlLabTrackingStore(AbstractStore):
                 experiments.append(exp_id)
         return experiments
 
-    def _get_deleted_experiments(self):
+    def _get_deleted_experiments(self) -> list[str]:
         json_docs = self.json_client.list_json_documents(
             self.project_id, "experiments")
 
@@ -118,7 +104,7 @@ class MlLabTrackingStore(AbstractStore):
                 experiments.append(exp_id)
         return experiments
 
-    def create_experiment(self, name, artifact_location=None, tags=None):
+    def create_experiment(self, name: str, artifact_location: str = None, tags: Optional[list[ExperimentTag]] = None) -> str:
         print("==============================")
         print("Creating experiment: {}".format(name))
         print("Artifact location: {}".format(artifact_location))
@@ -136,7 +122,7 @@ class MlLabTrackingStore(AbstractStore):
         experiment_id = max(experiments_ids) + 1 if experiments_ids else 0
         return self._create_experiment_with_id(name, str(experiment_id), artifact_location, tags)
 
-    def _create_experiment_with_id(self, name, experiment_id, artifact_uri, tags):
+    def _create_experiment_with_id(self, name: str, experiment_id: str, artifact_uri: str, tags: list[ExperimentTag]) -> str:
         artifact_uri = artifact_uri or append_to_uri_path(
             self.artifact_root_uri, str(experiment_id)
         )
@@ -153,7 +139,7 @@ class MlLabTrackingStore(AbstractStore):
                 self.set_experiment_tag(experiment_id, tag)
         return experiment_id
 
-    def set_experiment_tag(self, experiment_id, tag):
+    def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
         _validate_tag_name(tag.key)
         experiment = self.get_experiment(experiment_id)
         if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
@@ -168,7 +154,7 @@ class MlLabTrackingStore(AbstractStore):
         self.json_client.create_json_document(
             self.project_id, "experiment_tags", tag.key, json.dumps(tag_dict))
 
-    def _validate_experiment_does_not_exist(self, name):
+    def _validate_experiment_does_not_exist(self, name: str) -> None:
         experiment = self.get_experiment_by_name(name)
         if experiment is not None:
             if experiment.lifecycle_stage == LifecycleStage.DELETED:
@@ -185,7 +171,7 @@ class MlLabTrackingStore(AbstractStore):
                     databricks_pb2.RESOURCE_ALREADY_EXISTS,
                 )
 
-    def get_experiment(self, experiment_id):
+    def get_experiment(self, experiment_id: str) -> Experiment:
         print("==============================")
         print("Getting experiment: {}".format(experiment_id))
         print("==============================")
@@ -205,7 +191,7 @@ class MlLabTrackingStore(AbstractStore):
             )
         return experiment
 
-    def _get_experiment(self, experiment_id, view_type=ViewType.ALL):
+    def _get_experiment(self, experiment_id: str, view_type: ViewType = ViewType.ALL) -> Optional[Experiment]:
         _validate_experiment_id(experiment_id)
         meta = self._get_experiment_metadata(experiment_id)
         meta["tags"] = self._get_experiment_tags(experiment_id)
@@ -226,17 +212,20 @@ class MlLabTrackingStore(AbstractStore):
             project_id=self.project_id, collection_id="experiments", key=experiment_id)
         return json.loads(response.json_value)
 
-    def _get_experiment_tags(self, experiment_id):
+    def _get_experiment_tags(self, experiment_id: str) -> list[dict[str, str]]:
         try:
             response = self.json_client.get_json_document(
                 project_id=self.project_id, collection_id="experiments_tags", key=experiment_id)
         except ResourceNotFoundError:
-            return dict()
+            return []
 
-        print("Experiment tags: {}".format(response["json_value"]))
-        return response["json_value"]
+        tags = response.json_value
+        if type(tags) is dict:
+            tags = [tags]
 
-    def delete_experiment(self, experiment_id):
+        return tags
+
+    def delete_experiment(self, experiment_id: str) -> None:
         print("==============================")
         print("Deleting experiment: {}".format(experiment_id))
         print("==============================")
@@ -252,7 +241,7 @@ class MlLabTrackingStore(AbstractStore):
         self.json_client.update_json_document(
             self.project_id, "experiments", experiment_id, json.dumps(actual_json))
 
-    def restore_experiment(self, experiment_id):
+    def restore_experiment(self, experiment_id: str) -> None:
         print("==============================")
         print("Restoring experiment: {}".format(experiment_id))
         print("==============================")
@@ -268,7 +257,7 @@ class MlLabTrackingStore(AbstractStore):
         self.json_client.update_json_document(
             self.project_id, "experiments", experiment_id, json.dumps(actual_json))
 
-    def rename_experiment(self, experiment_id, new_name):
+    def rename_experiment(self, experiment_id: str, new_name: str) -> None:
         print("==============================")
         print("Renaming experiment: {}".format(experiment_id))
         print("New name: {}".format(new_name))
@@ -285,7 +274,7 @@ class MlLabTrackingStore(AbstractStore):
         self.json_client.update_json_document(
             self.project_id, "experiments", experiment_id, json.dumps(actual_json))
 
-    def get_run(self, run_id):
+    def get_run(self, run_id: str) -> Run:
         """
         Note: Will get both active and deleted runs.
         """
@@ -298,6 +287,7 @@ class MlLabTrackingStore(AbstractStore):
             raise MlflowException(
                 "Run '%s' metadata is in invalid state." % run_id, databricks_pb2.INVALID_STATE
             )
+        print(run_info)
         return self._get_run_from_info(run_info)
 
     def _get_run_from_info(self, run_info: RunInfo) -> Run:
@@ -306,7 +296,7 @@ class MlLabTrackingStore(AbstractStore):
         tags = self._get_all_tags(run_info)
         return Run(run_info, RunData(metrics, params, tags))
 
-    def _get_all_metrics(self, run_info: RunInfo) -> List[Metric]:
+    def _get_all_metrics(self, run_info: RunInfo) -> list[Metric]:
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "metrics", run_info.run_uuid)
@@ -322,7 +312,7 @@ class MlLabTrackingStore(AbstractStore):
                            metric["timestamp"], metric["step"]))
         return metrics
 
-    def _get_all_params(self, run_info: RunInfo) -> List[Param]:
+    def _get_all_params(self, run_info: RunInfo) -> list[Param]:
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "params", run_info.run_uuid)
@@ -337,7 +327,7 @@ class MlLabTrackingStore(AbstractStore):
             params.append(Param(param["key"], param["value"]))
         return params
 
-    def _get_all_tags(self, run_info: RunInfo) -> List[RunTag]:
+    def _get_all_tags(self, run_info: RunInfo) -> list[RunTag]:
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "tags", run_info.run_uuid)
@@ -352,7 +342,7 @@ class MlLabTrackingStore(AbstractStore):
             tags.append(RunTag(tag["key"], tag["value"]))
         return tags
 
-    def _get_run_info(self, run_uuid):
+    def _get_run_info(self, run_uuid: str) -> RunInfo:
         """
         Note: Will get both active and deleted runs.
         """
@@ -360,7 +350,7 @@ class MlLabTrackingStore(AbstractStore):
             project_id=self.project_id, collection_id="runs", key=run_uuid)
         return RunInfo.from_dictionary(json.loads(response.json_value))
 
-    def update_run_info(self, run_id, run_status, end_time):
+    def update_run_info(self, run_id: str, run_status: RunStatus, end_time: str) -> RunInfo:
         print("==============================")
         print("Updating run info: {}".format(run_id))
         print("Run status: {}".format(run_status))
@@ -377,7 +367,7 @@ class MlLabTrackingStore(AbstractStore):
         response_json = json.loads(response.json_value)
         return RunInfo.from_dictionary(response_json)
 
-    def create_run(self, experiment_id, user_id, start_time, tags=None):
+    def create_run(self, experiment_id: str, user_id: str, start_time: str, tags: list[RunTag] = None) -> Run:
         print("==============================")
         print("Creating run: {}".format(experiment_id))
         print("User ID: {}".format(user_id))
@@ -398,7 +388,8 @@ class MlLabTrackingStore(AbstractStore):
             "start_time": start_time,
             "end_time": None,
             "lifecycle_stage": LifecycleStage.ACTIVE,
-            "tags": tags_dict
+            "tags": tags_dict,
+            "artifact_uri": self.artifact_root_uri
         }
         json_data = json.dumps(data)
         self.json_client.create_json_document(
@@ -406,7 +397,7 @@ class MlLabTrackingStore(AbstractStore):
 
         return self.get_run(run_uuid)
 
-    def delete_run(self, run_id):
+    def delete_run(self, run_id: str) -> None:
         print("==============================")
         print("Deleting run: {}".format(run_id))
         print("==============================")
@@ -422,7 +413,7 @@ class MlLabTrackingStore(AbstractStore):
         self.json_client.update_json_document(
             self.project_id, "runs", run_id, json.dumps(actual_json))
 
-    def restore_run(self, run_id):
+    def restore_run(self, run_id: str) -> None:
         print("==============================")
         print("Restoring run: {}".format(run_id))
         print("==============================")
@@ -438,17 +429,30 @@ class MlLabTrackingStore(AbstractStore):
         self.json_client.update_json_document(
             self.project_id, "runs", run_id, json.dumps(actual_json))
 
-    def get_metric_history(self, run_id, metric_key):
+    def get_metric_history(self, run_id: str, metric_key: str) -> list[Metric]:
         print("==============================")
         print("Getting metric history: {}".format(run_id))
         print("Metric key: {}".format(metric_key))
         print("==============================")
         _validate_run_id(run_id)
         _validate_metric_name(metric_key)
-        # TODO: Implement this
-        return None
+        run_info = self._get_run_info(run_id)
+        return self._get_metric_history(run_info, metric_key)
 
-    def _search_runs(self, experiment_ids, filter_string, run_view_type, max_results, order_by, page_token):
+    def _get_metric_history(self, run_info: RunInfo, metric_key: str) -> list[Metric]:
+        response = self.json_client.get_json_document(
+            self.project_id, "metrics", run_info.run_uuid)
+        response_json = json.loads(response.json_value)
+        if type(response_json) == dict:
+            response_json = [response_json]
+        metrics = []
+        for metric in response_json:
+            if metric["key"] == metric_key:
+                metrics.append(
+                    Metric(metric["key"], metric["value"], metric["timestamp"], metric["step"]))
+        return metrics
+
+    def _search_runs(self, experiment_ids: list[str], filter_string: str, run_view_type: ViewType, max_results: int, order_by: list, page_token: Optional[bytes]) -> tuple[list[Run], Optional[bytes]]:
         print("==============================")
         print("Searching runs")
         print("Experiment IDs: {}".format(experiment_ids))
@@ -458,8 +462,6 @@ class MlLabTrackingStore(AbstractStore):
         print("Order by: {}".format(order_by))
         print("Page token: {}".format(page_token))
         print("==============================")
-
-        from mlflow.utils.search_utils import SearchUtils
 
         if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
             raise MlflowException(
@@ -478,7 +480,7 @@ class MlLabTrackingStore(AbstractStore):
             sorted_runs, page_token, max_results)
         return runs, next_page_token
 
-    def _list_run_infos(self, experiment_id, view_type):
+    def _list_run_infos(self, experiment_id: str, view_type: ViewType) -> list[RunInfo]:
         response = self.json_client.list_json_documents(
             self.project_id, "runs")
         runs = []
@@ -489,7 +491,7 @@ class MlLabTrackingStore(AbstractStore):
                 runs.append(run_info)
         return runs
 
-    def log_batch(self, run_id, metrics, params, tags):
+    def log_batch(self, run_id: str, metrics: list[Metric], params: list[Param], tags: list[RunTag]) -> None:
         print("==============================")
         print("Logging batch")
         print("==============================")
@@ -508,7 +510,6 @@ class MlLabTrackingStore(AbstractStore):
                 self._set_run_tag(run_info, tag)
         except Exception as e:
             raise MlflowException(e, INTERNAL_ERROR)
-        return None
 
     def _log_run_param(self, run_info: RunInfo, param: Param) -> None:
         data = {

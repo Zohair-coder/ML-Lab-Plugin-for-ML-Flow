@@ -21,11 +21,17 @@ class MlLabArtifactRepository(ArtifactRepository):
         file_client = FileClient(session)
         self.project_id = "2vnuohppfsxosjab4uzqge798"
         self.file_client = file_client
+        self.artifact_uri = artifact_uri[len("ml-lab:"):]
 
     def log_artifact(self, local_file, artifact_path=None):
         verify_artifact_path(artifact_path)
         file_name = os.path.basename(local_file)
-        artifact_path = os.path.join(artifact_path, file_name)
+        if artifact_path:
+            artifact_path = os.path.join(
+                self.artifact_uri, artifact_path, file_name)
+        else:
+            artifact_path = os.path.join(self.artifact_uri, file_name)
+
         # NOTE: The artifact_path is expected to be in posix format.
         # Posix paths work fine on windows but just in case we normalize it here.
         if artifact_path:
@@ -54,13 +60,18 @@ class MlLabArtifactRepository(ArtifactRepository):
         # Posix paths work fine on windows but just in case we normalize it here.
         if path:
             path = os.path.normpath(path)
+            prefix = os.path.join(self.artifact_uri, path)
+        else:
+            prefix = self.artifact_uri
         files = self.file_client.list_files(
-            project_id=self.project_id, prefix=path)
+            project_id=self.project_id, prefix=prefix)
         infos = []
         for file in files:
-            # remove the leading slash as well
-            file_path = file.key[len(path)+1:]
-            print(file_path)
+            characters_to_remove = len(self.artifact_uri)
+            if path:
+                # remove path + trailing slash
+                characters_to_remove += len(path)+1
+            file_path = file.key[characters_to_remove:]
             if "/" in file_path:
                 folder_name = file_path.split("/")[0]
                 info = FileInfo(folder_name, is_dir=True, file_size=None)
