@@ -184,3 +184,46 @@ def test_download_multiple_artifacts(client: MlflowClient, run: Run, tmp_path: p
     client.download_artifacts(run.info.run_id, "features", download_dir)
     assert (download_dir / "features" / text_file1_name).exists()
     assert (download_dir / "features" / text_file2_name).exists()
+
+
+def test_download_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+    artifact_dir = tmp_path / "artifact_dir"
+    artifact_dir.mkdir()
+    text_file_name = str(uuid.uuid4())
+    create_text_file(artifact_dir, text_file_name)
+    mlflow.log_artifacts(artifact_dir)
+    download_dir = tmp_path / "download_dir"
+    download_dir.mkdir()
+    client.download_artifacts(run.info.run_id, "", download_dir)
+    assert (download_dir / text_file_name).exists()
+
+
+def test_download_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+    artifact_dir = tmp_path / "artifact_dir"
+    artifact_dir.mkdir()
+    artifact_dir2 = artifact_dir / "artifact_dir2"
+    artifact_dir2.mkdir()
+    text_file_name = str(uuid.uuid4())
+    create_text_file(artifact_dir2, text_file_name)
+    mlflow.log_artifacts(artifact_dir)
+    download_dir = tmp_path / "download_dir"
+    download_dir.mkdir()
+    client.download_artifacts(run.info.run_id, "artifact_dir2", download_dir)
+    assert (download_dir / "artifact_dir2" / text_file_name).exists()
+
+
+def test_download_multiple_artifacts_in_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+    artifact_dir = tmp_path / "artifact_dir"
+    artifact_dir.mkdir()
+    artifact_dir2 = artifact_dir / "artifact_dir2"
+    artifact_dir2.mkdir()
+    text_file1_name = str(uuid.uuid4())
+    text_file2_name = str(uuid.uuid4())
+    create_text_file(artifact_dir2, text_file1_name)
+    create_text_file(artifact_dir2, text_file2_name)
+    mlflow.log_artifacts(artifact_dir)
+    download_dir = tmp_path / "download_dir"
+    download_dir.mkdir()
+    client.download_artifacts(run.info.run_id, "artifact_dir2", download_dir)
+    assert (download_dir / "artifact_dir2" / text_file1_name).exists()
+    assert (download_dir / "artifact_dir2" / text_file2_name).exists()
