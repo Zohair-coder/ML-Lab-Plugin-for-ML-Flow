@@ -47,7 +47,7 @@ def test_zero_artifacts(client: MlflowClient, run: Run) -> None:
     assert len(client.list_artifacts(run.info.run_id)) == 0
 
 
-def test_one_artifact(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_one_artifact(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     text_file_name = str(uuid.uuid4())
     file = create_text_file(tmp_path, text_file_name)
     mlflow.log_artifact(file)
@@ -61,7 +61,7 @@ def create_text_file(tmp_path: pathlib.Path, text_file_name: str):
     return file
 
 
-def test_multiple_artifacts(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_multiple_artifacts(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     text_file1_name = str(uuid.uuid4())
     text_file2_name = str(uuid.uuid4())
     file1 = create_text_file(tmp_path, text_file1_name)
@@ -73,14 +73,14 @@ def test_multiple_artifacts(client: MlflowClient, run: Run, tmp_path: pathlib.Pa
         assert artifact.path == text_file1_name or artifact.path == text_file2_name
 
 
-def test_no_artifacts_inside_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_no_artifacts_inside_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     new_dir = tmp_path / "new_dir"
     new_dir.mkdir()
     mlflow.log_artifacts(new_dir)
     assert len(client.list_artifacts(run.info.run_id)) == 0
 
 
-def test_one_artifact_inside_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_one_artifact_inside_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     new_dir = tmp_path / "new_dir"
     new_dir.mkdir()
     text_file_name = str(uuid.uuid4())
@@ -90,7 +90,7 @@ def test_one_artifact_inside_directory(client: MlflowClient, run: Run, tmp_path:
     assert client.list_artifacts(run.info.run_id)[0].path == text_file_name
 
 
-def test_multiple_artifacts_inside_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_multiple_artifacts_inside_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     new_dir = tmp_path / "new_dir"
     new_dir.mkdir()
     text_file1_name = str(uuid.uuid4())
@@ -104,7 +104,7 @@ def test_multiple_artifacts_inside_directory(client: MlflowClient, run: Run, tmp
 
 
 @pytest.mark.skip(reason="Need clarification on test. We can't make empty directories on ML Lab FileStore.")
-def test_empty_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_empty_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     new_dir = tmp_path / "new_dir"
     new_dir.mkdir()
     new_dir2 = new_dir / "new_dir2"
@@ -113,7 +113,7 @@ def test_empty_nested_directory(client: MlflowClient, run: Run, tmp_path: pathli
     assert len(client.list_artifacts(run.info.run_id)) == 1
 
 
-def test_one_artifact_inside_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_one_artifact_inside_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     new_dir = tmp_path / "new_dir"
     new_dir.mkdir()
     new_dir2 = new_dir / "new_dir2"
@@ -126,7 +126,7 @@ def test_one_artifact_inside_nested_directory(client: MlflowClient, run: Run, tm
     assert client.list_artifacts(run.info.run_id)[0].is_dir == True
 
 
-def test_multiple_artifacts_inside_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+def test_log_multiple_artifacts_inside_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     new_dir = tmp_path / "new_dir"
     new_dir.mkdir()
     new_dir2 = new_dir / "new_dir2"
@@ -172,7 +172,6 @@ def test_download_one_artifact(client: MlflowClient, run: Run, tmp_path: pathlib
     assert downloaded_file.exists()
 
 
-# @pytest.mark.skip(reason="Need to fix log_artifact_with_artifact_path_specified first")
 def test_download_multiple_artifacts(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
     text_file1_name = str(uuid.uuid4())
     text_file2_name = str(uuid.uuid4())
