@@ -6,7 +6,7 @@ import os
 import uuid
 import shutil
 import pathlib
-from helpers import get_safe_port, launch_server
+from helpers import get_safe_port, launch_artifact_repository_test_server
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -17,7 +17,7 @@ def artifacts_server():
     artifact_uri = "ml-lab:/mlflow"
     # artifact_uri = "."
     port = get_safe_port()
-    process = launch_server(artifact_uri, port)
+    process = launch_artifact_repository_test_server(artifact_uri, port)
     mlflow.set_tracking_uri("http://localhost:{}".format(port))
     yield
     process.kill()
@@ -101,16 +101,6 @@ def test_log_multiple_artifacts_inside_directory(client: MlflowClient, run: Run,
     assert len(client.list_artifacts(run.info.run_id)) == 2
     for artifact in client.list_artifacts(run.info.run_id):
         assert artifact.path == text_file1_name or artifact.path == text_file2_name
-
-
-@pytest.mark.skip(reason="Need clarification on test. We can't make empty directories on ML Lab FileStore.")
-def test_log_empty_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
-    new_dir = tmp_path / "new_dir"
-    new_dir.mkdir()
-    new_dir2 = new_dir / "new_dir2"
-    new_dir2.mkdir()
-    mlflow.log_artifacts(new_dir)
-    assert len(client.list_artifacts(run.info.run_id)) == 1
 
 
 def test_log_one_artifact_inside_nested_directory(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:

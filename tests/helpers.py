@@ -14,12 +14,30 @@ def get_safe_port():
     return port
 
 
-def launch_server(default_artifact_root, port=5001):
+def launch_artifact_repository_test_server(default_artifact_root, port=5001):
     cmd = [
         "mlflow",
         "server",
         "--default-artifact-root",
         default_artifact_root,
+        "--serve-artifacts",
+        "--port",
+        str(port),
+    ]
+
+    process = subprocess.Popen(cmd)
+    await_server_up_or_die(port)
+    return process
+
+
+def launch_tracking_store_test_server(store_uri, port=5001):
+    cmd = [
+        "mlflow",
+        "server",
+        "--backend-store-uri",
+        store_uri,
+        "--artifacts-destination",
+        "./mlruns",
         "--serve-artifacts",
         "--port",
         str(port),

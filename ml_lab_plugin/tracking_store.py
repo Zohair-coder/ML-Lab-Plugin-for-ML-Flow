@@ -42,11 +42,11 @@ class MlLabTrackingStore(AbstractStore):
         self.artifact_root_uri = artifact_uri
         url = "https://ls6415.wdf.sap.corp:8076/api"
         session = BaseUrlSession(base_url=url)
-        token = "32e01d515de63d015e71c2885e968493edbc672f"
+        token = "da99c5846720f25900299dc89753df7d87a29e72"
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         json_client = JsonDocumentClient(session)
-        self.project_id = "2vnuohppfsxosjab4uzqge798"
+        self.project_id = "test-project-id"
         self.json_client = json_client
 
     def list_experiments(self, view_type: ViewType = ViewType.ACTIVE_ONLY, max_results: int = None, page_token: bytes = None) -> PagedList:
@@ -297,49 +297,53 @@ class MlLabTrackingStore(AbstractStore):
         return Run(run_info, RunData(metrics, params, tags))
 
     def _get_all_metrics(self, run_info: RunInfo) -> list[Metric]:
+        print("==============================")
+        print("Getting metrics for run: {}".format(run_info.run_id))
+        print("==============================")
         try:
             response = self.json_client.get_json_document(
-                self.project_id, "metrics", run_info.run_uuid)
+                self.project_id, "runs", run_info.run_id)
         except ResourceNotFoundError:
             return []
 
         response_json = json.loads(response.json_value)
-        if type(response_json) == dict:
-            response_json = [response_json]
-        metrics = []
-        for metric in response_json:
-            metrics.append(Metric(metric["key"], metric["value"],
-                           metric["timestamp"], metric["step"]))
+        metrics_dict: dict = response_json["metrics"]
+        print("Metrics: {}".format(metrics_dict))
+        metrics: list[Metric] = []
+        for metric_key, info in metrics_dict.items():
+            metrics.append(
+                Metric(metric_key, info["value"], info["timestamp"], info["step"]))
         return metrics
 
     def _get_all_params(self, run_info: RunInfo) -> list[Param]:
         try:
             response = self.json_client.get_json_document(
-                self.project_id, "params", run_info.run_uuid)
+                self.project_id, "runs", run_info.run_id)
         except ResourceNotFoundError:
             return []
 
         response_json = json.loads(response.json_value)
-        if type(response_json) == dict:
-            response_json = [response_json]
-        params = []
-        for param in response_json:
-            params.append(Param(param["key"], param["value"]))
+        params_list: dict = response_json["params"]
+        params: list[Param] = []
+        for key, value in params_list.items():
+            params.append(Param(key, value))
         return params
 
     def _get_all_tags(self, run_info: RunInfo) -> list[RunTag]:
+        print("==============================")
+        print("Getting tags for run: {}".format(run_info.run_id))
+        print("==============================")
         try:
             response = self.json_client.get_json_document(
-                self.project_id, "tags", run_info.run_uuid)
+                self.project_id, "runs", run_info.run_id)
         except ResourceNotFoundError:
             return []
 
         response_json = json.loads(response.json_value)
-        if type(response_json) == dict:
-            response_json = [response_json]
-        tags = []
-        for tag in response_json:
-            tags.append(RunTag(tag["key"], tag["value"]))
+        tags_list: dict = response_json["tags"]
+        tags: list[RunTag] = []
+        for key, value in tags_list.items():
+            tags.append(RunTag(key, value))
         return tags
 
     def _get_run_info(self, run_uuid: str) -> RunInfo:
@@ -388,6 +392,8 @@ class MlLabTrackingStore(AbstractStore):
             "start_time": start_time,
             "end_time": None,
             "lifecycle_stage": LifecycleStage.ACTIVE,
+            "metrics": {},
+            "params": {},
             "tags": tags_dict,
             "artifact_uri": self.artifact_root_uri
         }
@@ -441,15 +447,13 @@ class MlLabTrackingStore(AbstractStore):
 
     def _get_metric_history(self, run_info: RunInfo, metric_key: str) -> list[Metric]:
         response = self.json_client.get_json_document(
-            self.project_id, "metrics", run_info.run_uuid)
-        response_json = json.loads(response.json_value)
-        if type(response_json) == dict:
-            response_json = [response_json]
+            self.project_id, "runs", run_info.run_uuid)
+        metrics_dict = json.loads(response.json_value)["metrics"]
         metrics = []
-        for metric in response_json:
-            if metric["key"] == metric_key:
+        for key, value in metrics_dict.items():
+            if key == metric_key:
                 metrics.append(
-                    Metric(metric["key"], metric["value"], metric["timestamp"], metric["step"]))
+                    Metric(key, value["value"], value["timestamp"], value["step"]))
         return metrics
 
     def _search_runs(self, experiment_ids: list[str], filter_string: str, run_view_type: ViewType, max_results: int, order_by: list, page_token: Optional[bytes]) -> tuple[list[Run], Optional[bytes]]:
@@ -494,6 +498,10 @@ class MlLabTrackingStore(AbstractStore):
     def log_batch(self, run_id: str, metrics: list[Metric], params: list[Param], tags: list[RunTag]) -> None:
         print("==============================")
         print("Logging batch")
+        print("Run ID: {}".format(run_id))
+        print("Metrics: {}".format(metrics))
+        print("Params: {}".format(params))
+        print("Tags: {}".format(tags))
         print("==============================")
         _validate_run_id(run_id)
         _validate_batch_log_data(metrics, params, tags)
@@ -512,33 +520,27 @@ class MlLabTrackingStore(AbstractStore):
             raise MlflowException(e, INTERNAL_ERROR)
 
     def _log_run_param(self, run_info: RunInfo, param: Param) -> None:
-        data = {
-            "key": param.key,
-            "value": param.value,
-            "run_uuid": run_info.run_uuid
-        }
-        self.json_client.create_json_document(
-            self.project_id, "params", run_info.run_uuid, json.dumps(data))
+        params: list[Param] = self._get_all_params(run_info)
+        params.append(Param(param.key, param.value))
+        params_dict: dict = {p.key: p.value for p in params}
+        self.json_client.update_json_document(
+            self.project_id, "runs", run_info.run_uuid, json.dumps({"params": params_dict}))
 
     def _log_run_metric(self, run_info: RunInfo, metric: Metric) -> None:
-        data = {
-            "key": metric.key,
-            "value": metric.value,
-            "timestamp": metric.timestamp,
-            "run_uuid": run_info.run_uuid,
-            "step": metric.step,
-        }
-        self.json_client.create_json_document(
-            self.project_id, "metrics", run_info.run_uuid, json.dumps(data))
+        metrics: list[Metric] = self._get_all_metrics(run_info)
+        metrics.append(Metric(metric.key, metric.value,
+                       metric.timestamp, metric.step))
+        metrics_dict: dict = {m.key: {
+            "value": m.value, "timestamp": m.timestamp, "step": m.step} for m in metrics}
+        self.json_client.update_json_document(
+            self.project_id, "runs", run_info.run_uuid, json.dumps({"metrics": metrics_dict}))
 
     def _set_run_tag(self, run_info: RunInfo, tag: RunTag) -> None:
-        data = {
-            "key": tag.key,
-            "value": tag.value,
-            "run_uuid": run_info.run_uuid
-        }
-        self.json_client.create_json_document(
-            self.project_id, "tags", run_info.run_uuid, json.dumps(data))
+        tags: list[RunTag] = self._get_all_tags(run_info)
+        tags.append(RunTag(tag.key, tag.value))
+        tags_dict: dict = {t.key: t.value for t in tags}
+        self.json_client.update_json_document(
+            self.project_id, "runs", run_info.run_uuid, json.dumps({"tags": tags_dict}))
 
 
 def _read_persisted_experiment_dict(experiment_dict: dict) -> Experiment:

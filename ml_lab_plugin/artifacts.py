@@ -20,11 +20,11 @@ class MlLabArtifactRepository(ArtifactRepository):
         super().__init__(artifact_uri)
         url = "https://ls6415.wdf.sap.corp:8076/api"
         session = BaseUrlSession(base_url=url)
-        token = "32e01d515de63d015e71c2885e968493edbc672f"
+        token = "da99c5846720f25900299dc89753df7d87a29e72"
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         file_client = FileClient(session)
-        self.project_id = "2vnuohppfsxosjab4uzqge798"
+        self.project_id = "test-project-id"
         self.file_client = file_client
         self.artifact_uri = artifact_uri[len("ml-lab:"):]
 
