@@ -131,12 +131,10 @@ class MlLabTrackingStore(AbstractStore):
             "name": name,
             "artifact_location": artifact_uri,
             "lifecycle_stage": LifecycleStage.ACTIVE,
+            "tags": {tag.key: tag.value for tag in tags}
         }
         self.json_client.create_json_document(
             self.project_id, "experiments", experiment_id, json.dumps(experiment_dict))
-        if tags is not None:
-            for tag in tags:
-                self.set_experiment_tag(experiment_id, tag)
         return experiment_id
 
     def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
@@ -148,11 +146,12 @@ class MlLabTrackingStore(AbstractStore):
                 "lifecycle_stage to set tags".format(experiment.experiment_id),
                 error_code=databricks_pb2.INVALID_PARAMETER_VALUE,
             )
-        tag_dict = {"key": tag.key, "value": tag.value,
-                    "experiment_id": experiment_id}
+        tags: list[dict[str, str]] = experiment.tags
+        tag_dict = {tag.key: tag.value}
+        tags.append(tag_dict)
 
-        self.json_client.create_json_document(
-            self.project_id, "experiment_tags", tag.key, json.dumps(tag_dict))
+        self.json_client.update_json_document(
+            self.project_id, "experiments", experiment_id, json.dumps({"tags": tags}))
 
     def _validate_experiment_does_not_exist(self, name: str) -> None:
         experiment = self.get_experiment_by_name(name)
@@ -194,7 +193,8 @@ class MlLabTrackingStore(AbstractStore):
     def _get_experiment(self, experiment_id: str, view_type: ViewType = ViewType.ALL) -> Optional[Experiment]:
         _validate_experiment_id(experiment_id)
         meta = self._get_experiment_metadata(experiment_id)
-        meta["tags"] = self._get_experiment_tags(experiment_id)
+        meta["tags"] = [ExperimentTag(key, value)
+                        for key, value in meta["tags"].items()]
         experiment = _read_persisted_experiment_dict(meta)
         if experiment_id != experiment.experiment_id:
             logging.warning(

@@ -6,6 +6,7 @@ import uuid
 from helpers import get_safe_port, launch_tracking_store_test_server
 from mlflow.tracking import MlflowClient
 from mlflow.entities import Run
+from mlflow.exceptions import MlflowException
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -24,6 +25,19 @@ def artifacts_server():
         shutil.rmtree("mlruns")
 
 
+@pytest.fixture(scope="module", autouse=True)
+def delete_all_experiments(client: MlflowClient, delete_all_runs) -> None:
+    for experiment in client.list_experiments():
+        client.delete_experiment(experiment.experiment_id)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def delete_all_runs(client: MlflowClient, artifacts_server) -> None:
+    for experiment in client.list_experiments():
+        for run in client.list_run_infos(experiment.experiment_id):
+            client.delete_run(run.run_id)
+
+
 @pytest.fixture(scope="function")
 def run(artifacts_server):
     """
@@ -40,18 +54,6 @@ def client() -> MlflowClient:
     Returns an instance of MlflowClient.
     """
     return MlflowClient()
-
-
-@pytest.fixture(scope="module")
-def experiment(client: MlflowClient) -> str:
-    """"
-    Returns an Mlflow Experiment.
-    """
-    experiment_name = str(uuid.uuid4())
-    experiment_id = client.create_experiment(experiment_name, "./mlruns")
-    yield experiment_id
-    if experiment in [e.experiment_id for e in client.list_experiments()]:
-        client.delete_experiment(experiment_id)
 
 
 def test_zero_metrics(client: MlflowClient, run: Run) -> None:
@@ -131,6 +133,42 @@ def test_log_non_numeric_metric() -> None:
         mlflow.log_metric("metric", "string")
 
 
-def test_list_new_experiment(client: MlflowClient, experiment: str) -> None:
-    print("Experiments: {}".format(client.list_experiments()))
-    assert experiment in [e.experiment_id for e in client.list_experiments()]
+def test_create_one_experiment(client: MlflowClient) -> None:
+    old_experiments = client.list_experiments()
+    experiment_name = str(uuid.uuid4())
+    experiment_id = client.create_experiment(experiment_name, "./mlruns")
+    new_experiments = client.list_experiments()
+    assert len(new_experiments) == len(old_experiments) + 1
+    assert experiment_id in [
+        e.experiment_id for e in new_experiments]
+
+
+def test_create_experiments_with_existing_name(client: MlflowClient) -> None:
+    old_experiments = client.list_experiments()
+    experiment_name = str(uuid.uuid4())
+    client.create_experiment(experiment_name, "./mlruns")
+    with pytest.raises(MlflowException):
+        client.create_experiment(experiment_name, "./mlruns")
+    new_experiments = client.list_experiments()
+    assert len(new_experiments) == len(old_experiments) + 1
+
+
+def test_create_multiple_experiments(client: MlflowClient) -> None:
+    old_experiments = client.list_experiments()
+    experiment_name_1 = str(uuid.uuid4())
+    experiment_name_2 = str(uuid.uuid4())
+    experiment_id_1 = client.create_experiment(experiment_name_1, "./mlruns")
+    experiment_id_2 = client.create_experiment(experiment_name_2, "./mlruns")
+    new_experiments = client.list_experiments()
+    assert len(new_experiments) == len(old_experiments) + 2
+    assert experiment_id_1 in [e.experiment_id for e in new_experiments]
+    assert experiment_id_2 in [e.experiment_id for e in new_experiments]
+
+
+def test_create_experiment_with_tags(client: MlflowClient) -> None:
+    experiment_name = str(uuid.uuid4())
+    experiment_id = client.create_experiment(
+        experiment_name, "./mlruns", tags={"tag1": "value1", "tag2": "value2"})
+    experiment = client.get_experiment(experiment_id)
+    assert experiment.tags["tag1"] == "value1"
+    assert experiment.tags["tag2"] == "value2"
