@@ -15,8 +15,8 @@ def artifacts_server():
     """
     Starts and stops mlflow server and sets the tracking_uri.
     """
-    # store_uri = "ml-lab:/mlflow"
-    store_uri = "./mlruns"
+    store_uri = "ml-lab:/mlflow"
+    # store_uri = "./mlruns"
     port = get_safe_port()
     process = launch_tracking_store_test_server(store_uri, port)
     mlflow.set_tracking_uri("http://localhost:{}".format(port))
@@ -201,13 +201,47 @@ def test_single_metric_history(client: MlflowClient, run: Run) -> None:
     assert metric_history[0].value == 1
 
 
-def test_multiple_metric_history(client: MlflowClient, run: Run) -> None:
+def test_multiple_metric_history_with_same_key(client: MlflowClient, run: Run) -> None:
     run_id = run.info.run_id
     client.log_metric(run_id, "metric1", 1)
     client.log_metric(run_id, "metric1", 2)
+    client.log_metric(run_id, "metric1", 3)
+    metric_history = client.get_metric_history(run_id, "metric1")
+    assert len(metric_history) == 3
+    assert metric_history[0].step == 0
+    assert metric_history[0].value == 1
+    assert metric_history[1].step == 0
+    assert metric_history[1].value == 2
+    assert metric_history[2].step == 0
+    assert metric_history[2].value == 3
+
+
+def test_multiple_metric_history_with_different_keys(client: MlflowClient, run: Run) -> None:
+    run_id = run.info.run_id
+    client.log_metric(run_id, "metric1", 1)
+    client.log_metric(run_id, "metric2", 2)
+    metric_history = client.get_metric_history(run_id, "metric1")
+    assert len(metric_history) == 1
+    assert metric_history[0].step == 0
+    assert metric_history[0].value == 1
+    metric_history = client.get_metric_history(run_id, "metric2")
+    assert len(metric_history) == 1
+    assert metric_history[0].step == 0
+    assert metric_history[0].value == 2
+
+
+def test_multiple_metric_history(client: MlflowClient, run: Run) -> None:
+    run_id = run.info.run_id
+    client.log_metric(run_id, "metric1", 1)
+    client.log_metric(run_id, "metric2", 2)
+    client.log_metric(run_id, "metric1", 3)
     metric_history = client.get_metric_history(run_id, "metric1")
     assert len(metric_history) == 2
     assert metric_history[0].step == 0
     assert metric_history[0].value == 1
     assert metric_history[1].step == 0
-    assert metric_history[1].value == 2
+    assert metric_history[1].value == 3
+    metric_history = client.get_metric_history(run_id, "metric2")
+    assert len(metric_history) == 1
+    assert metric_history[0].step == 0
+    assert metric_history[0].value == 2
