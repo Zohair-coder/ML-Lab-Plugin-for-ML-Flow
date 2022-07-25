@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 from typing import Optional
+from urllib import parse
 
 import mlflow.protos.databricks_pb2 as databricks_pb2
 from contaxy.clients import JsonDocumentClient
@@ -35,13 +36,14 @@ class MlLabTrackingStore(AbstractStore):
         # TODO: find a solution for not hardcoding the url and token
         self.store_uri = store_uri
         self.artifact_root_uri = artifact_uri
-        url = "http://localhost:30010/api"
+        parse_result = parse.urlparse(self.store_uri)
+        url = "http://{}/api".format(parse_result.netloc)
         session = BaseUrlSession(base_url=url)
-        token = "4239a609f81848440c1a4479492cc8fb5a320ccc"
+        self.project_id = parse_result.path.split("/")[1]
+        token = parse_result.path.split("/")[2]
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         json_client = JsonDocumentClient(session)
-        self.project_id = "test-project-id"
         self.json_client = json_client
 
     def list_experiments(self, view_type: ViewType = ViewType.ACTIVE_ONLY, max_results: int = None, page_token: bytes = None) -> PagedList:
@@ -239,10 +241,6 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "experiments", experiment_id, json.dumps(actual_json))
 
     def rename_experiment(self, experiment_id: str, new_name: str) -> None:
-        ("==============================")
-        ("Renaming experiment: {}".format(experiment_id))
-        ("New name: {}".format(new_name))
-        ("==============================")
         json_document = self.json_client.get_json_document(
             self.project_id, "experiments", experiment_id)
         actual_json = json.loads(json_document.json_value)
@@ -259,9 +257,6 @@ class MlLabTrackingStore(AbstractStore):
         """
         Note: Will get both active and deleted runs.
         """
-        ("==============================")
-        ("Getting run: {}".format(run_id))
-        ("==============================")
         _validate_run_id(run_id)
         run_info = self._get_run_info(run_id)
         if run_info is None:
@@ -278,9 +273,6 @@ class MlLabTrackingStore(AbstractStore):
         return Run(run_info, RunData(metrics, params, tags))
 
     def _get_all_metrics(self, run_info: RunInfo) -> list[Metric]:
-        ("==============================")
-        ("Getting metrics for run: {}".format(run_info.run_id))
-        ("==============================")
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "runs", run_info.run_id)
@@ -312,9 +304,6 @@ class MlLabTrackingStore(AbstractStore):
         return params
 
     def _get_all_tags(self, run_info: RunInfo) -> list[RunTag]:
-        ("==============================")
-        ("Getting tags for run: {}".format(run_info.run_id))
-        ("==============================")
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "runs", run_info.run_id)
@@ -337,11 +326,6 @@ class MlLabTrackingStore(AbstractStore):
         return RunInfo.from_dictionary(json.loads(response.json_value))
 
     def update_run_info(self, run_id: str, run_status: RunStatus, end_time: str) -> RunInfo:
-        ("==============================")
-        ("Updating run info: {}".format(run_id))
-        ("Run status: {}".format(run_status))
-        ("End time: {}".format(end_time))
-        ("==============================")
         _validate_run_id(run_id)
         json_document = self.json_client.get_json_document(
             self.project_id, "runs", run_id)
@@ -354,12 +338,6 @@ class MlLabTrackingStore(AbstractStore):
         return RunInfo.from_dictionary(response_json)
 
     def create_run(self, experiment_id: str, user_id: str, start_time: str, tags: list[RunTag] = None) -> Run:
-        ("==============================")
-        ("Creating run: {}".format(experiment_id))
-        ("User ID: {}".format(user_id))
-        ("Start time: {}".format(start_time))
-        ("Tags: {}".format(tags))
-        ("==============================")
         experiment_id = MlLabTrackingStore.DEFAULT_EXPERIMENT_ID if experiment_id is None else experiment_id
         run_uuid = uuid.uuid4().hex
         tags_dict = dict()
@@ -386,9 +364,6 @@ class MlLabTrackingStore(AbstractStore):
         return self.get_run(run_uuid)
 
     def delete_run(self, run_id: str) -> None:
-        ("==============================")
-        ("Deleting run: {}".format(run_id))
-        ("==============================")
         json_document = self.json_client.get_json_document(
             self.project_id, "runs", run_id)
         actual_json = json.loads(json_document.json_value)
@@ -402,9 +377,6 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "runs", run_id, json.dumps(actual_json))
 
     def restore_run(self, run_id: str) -> None:
-        ("==============================")
-        ("Restoring run: {}".format(run_id))
-        ("==============================")
         json_document = self.json_client.get_json_document(
             self.project_id, "runs", run_id)
         actual_json = json.loads(json_document.json_value)
@@ -418,10 +390,6 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "runs", run_id, json.dumps(actual_json))
 
     def get_metric_history(self, run_id: str, metric_key: str) -> list[Metric]:
-        ("==============================")
-        ("Getting metric history: {}".format(run_id))
-        ("Metric key: {}".format(metric_key))
-        ("==============================")
         _validate_run_id(run_id)
         _validate_metric_name(metric_key)
         run_info = self._get_run_info(run_id)

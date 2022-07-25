@@ -7,6 +7,7 @@ from mlflow.exceptions import MlflowException
 import tempfile
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, RESOURCE_DOES_NOT_EXIST
 from collections import namedtuple
+from urllib import parse
 
 import os
 import posixpath
@@ -18,15 +19,17 @@ class MlLabArtifactRepository(ArtifactRepository):
     def __init__(self, artifact_uri):
         # TODO: find a solution for not hardcoding the url and token
         super().__init__(artifact_uri)
-        url = "http://localhost:30010/api"
+        parse_result = parse.urlparse(artifact_uri)
+        url = "http://{}/api".format(parse_result.netloc)
         session = BaseUrlSession(base_url=url)
-        token = "4239a609f81848440c1a4479492cc8fb5a320ccc"
+        self.project_id = parse_result.path.split("/")[1]
+        token = parse_result.path.split("/")[2]
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         file_client = FileClient(session)
-        self.project_id = "test-project-id"
         self.file_client = file_client
-        self.artifact_uri = artifact_uri[len("ml-lab:/"):]
+        self.artifact_uri = artifact_uri[len(
+            "{}://".format(parse_result.scheme)):]
 
     def log_artifact(self, local_file, artifact_path=None):
         verify_artifact_path(artifact_path)

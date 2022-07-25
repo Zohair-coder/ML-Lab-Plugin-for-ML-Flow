@@ -14,9 +14,12 @@ def artifacts_server():
     """
     Starts and stops mlflow server and sets the tracking_uri.
     """
-    artifact_uri = "ml-lab:/mlflow"
-    # artifact_uri = "."
+    api_key = "4239a609f81848440c1a4479492cc8fb5a320ccc"
+    project_id = "test-project-id"
     port = get_safe_port()
+    artifact_uri = "ml-lab://localhost:30010/{}/{}".format(
+        project_id, api_key)
+    # artifact_uri = "."
     process = launch_artifact_repository_test_server(artifact_uri, port)
     mlflow.set_tracking_uri("http://localhost:{}".format(port))
     yield
