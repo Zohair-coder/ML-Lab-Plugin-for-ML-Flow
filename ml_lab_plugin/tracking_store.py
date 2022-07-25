@@ -40,9 +40,9 @@ class MlLabTrackingStore(AbstractStore):
         # TODO: find a solution for not hardcoding the url and token
         self.store_uri = store_uri
         self.artifact_root_uri = artifact_uri
-        url = "https://ls6415.wdf.sap.corp:8076/api"
+        url = "http://localhost:30010/api"
         session = BaseUrlSession(base_url=url)
-        token = "da99c5846720f25900299dc89753df7d87a29e72"
+        token = "4239a609f81848440c1a4479492cc8fb5a320ccc"
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         json_client = JsonDocumentClient(session)
@@ -309,11 +309,12 @@ class MlLabTrackingStore(AbstractStore):
         response_json = json.loads(response.json_value)
         metrics_dict: dict = response_json["metrics"]
         print("Metrics: {}".format(metrics_dict))
-        metrics: list[Metric] = []
-        for metric_key, info in metrics_dict.items():
-            metrics.append(
-                Metric(metric_key, info["value"], info["timestamp"], info["step"]))
-        return metrics
+        latest_metrics: list[Metric] = []
+        for metric_key, infos in metrics_dict.items():
+            latest_metric = infos[-1]
+            latest_metrics.append(
+                Metric(metric_key, latest_metric["value"], latest_metric["timestamp"], latest_metric["step"]))
+        return latest_metrics
 
     def _get_all_params(self, run_info: RunInfo) -> list[Param]:
         try:
@@ -449,12 +450,12 @@ class MlLabTrackingStore(AbstractStore):
         response = self.json_client.get_json_document(
             self.project_id, "runs", run_info.run_uuid)
         metrics_dict = json.loads(response.json_value)["metrics"]
-        metrics = []
-        for key, value in metrics_dict.items():
-            if key == metric_key:
-                metrics.append(
-                    Metric(key, value["value"], value["timestamp"], value["step"]))
-        return metrics
+        metrics_list = metrics_dict.get(metric_key, [])
+        metrics_history = []
+        for metric_info in metrics_list:
+            metrics_history.append(
+                Metric(metric_key, metric_info["value"], metric_info["timestamp"], metric_info["step"]))
+        return metrics_history
 
     def _search_runs(self, experiment_ids: list[str], filter_string: str, run_view_type: ViewType, max_results: int, order_by: list, page_token: Optional[bytes]) -> tuple[list[Run], Optional[bytes]]:
         print("==============================")
@@ -527,13 +528,15 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "runs", run_info.run_uuid, json.dumps({"params": params_dict}))
 
     def _log_run_metric(self, run_info: RunInfo, metric: Metric) -> None:
-        metrics: list[Metric] = self._get_all_metrics(run_info)
-        metrics.append(Metric(metric.key, metric.value,
-                       metric.timestamp, metric.step))
-        metrics_dict: dict = {m.key: {
-            "value": m.value, "timestamp": m.timestamp, "step": m.step} for m in metrics}
+        run: dict = json.loads(self.json_client.get_json_document(
+            self.project_id, "runs", run_info.run_uuid).json_value)
+        run_metrics = run["metrics"]
+        if metric.key not in run_metrics:
+            run_metrics[metric.key] = []
+        run_metrics[metric.key].append(
+            {"value": metric.value, "timestamp": metric.timestamp, "step": metric.step})
         self.json_client.update_json_document(
-            self.project_id, "runs", run_info.run_uuid, json.dumps({"metrics": metrics_dict}))
+            self.project_id, "runs", run_info.run_uuid, json.dumps({"metrics": {metric.key: run_metrics[metric.key]}}))
 
     def _set_run_tag(self, run_info: RunInfo, tag: RunTag) -> None:
         tags: list[RunTag] = self._get_all_tags(run_info)

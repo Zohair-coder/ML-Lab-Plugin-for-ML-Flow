@@ -7,6 +7,7 @@ from helpers import get_safe_port, launch_tracking_store_test_server
 from mlflow.tracking import MlflowClient
 from mlflow.entities import Run
 from mlflow.exceptions import MlflowException
+from mlflow.entities.lifecycle_stage import LifecycleStage
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -14,8 +15,8 @@ def artifacts_server():
     """
     Starts and stops mlflow server and sets the tracking_uri.
     """
-    store_uri = "ml-lab:/mlflow"
-    # store_uri = "./mlruns"
+    # store_uri = "ml-lab:/mlflow"
+    store_uri = "./mlruns"
     port = get_safe_port()
     process = launch_tracking_store_test_server(store_uri, port)
     mlflow.set_tracking_uri("http://localhost:{}".format(port))
@@ -25,21 +26,8 @@ def artifacts_server():
         shutil.rmtree("mlruns")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def delete_all_experiments(client: MlflowClient, delete_all_runs) -> None:
-    for experiment in client.list_experiments():
-        client.delete_experiment(experiment.experiment_id)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def delete_all_runs(client: MlflowClient, artifacts_server) -> None:
-    for experiment in client.list_experiments():
-        for run in client.list_run_infos(experiment.experiment_id):
-            client.delete_run(run.run_id)
-
-
 @pytest.fixture(scope="function")
-def run(artifacts_server):
+def run(artifacts_server) -> Run:
     """
     Creates a run and returns the run object.
     """
@@ -128,11 +116,6 @@ def test_log_multiple_tags_with_same_key(client: MlflowClient, run: Run) -> None
     assert new_tags["tag"] == "value2"
 
 
-def test_log_non_numeric_metric() -> None:
-    with pytest.raises(TypeError):
-        mlflow.log_metric("metric", "string")
-
-
 def test_create_one_experiment(client: MlflowClient) -> None:
     old_experiments = client.list_experiments()
     experiment_name = str(uuid.uuid4())
@@ -172,3 +155,59 @@ def test_create_experiment_with_tags(client: MlflowClient) -> None:
     experiment = client.get_experiment(experiment_id)
     assert experiment.tags["tag1"] == "value1"
     assert experiment.tags["tag2"] == "value2"
+
+
+def test_delete_experiment(client: MlflowClient) -> None:
+    experiment_name = str(uuid.uuid4())
+    experiment_id = client.create_experiment(experiment_name, "./mlruns")
+    client.delete_experiment(experiment_id)
+    assert experiment_id not in [
+        e.experiment_id for e in client.list_experiments()]
+
+
+def test_restore_experiment(client: MlflowClient) -> None:
+    experiment_name = str(uuid.uuid4())
+    experiment_id = client.create_experiment(experiment_name, "./mlruns")
+    client.delete_experiment(experiment_id)
+    client.restore_experiment(experiment_id)
+    assert experiment_id in [
+        e.experiment_id for e in client.list_experiments()]
+
+
+def test_rename_experiment(client: MlflowClient) -> None:
+    experiment_name = str(uuid.uuid4())
+    experiment_id = client.create_experiment(experiment_name, "./mlruns")
+    new_experiment_name = str(uuid.uuid4())
+    client.rename_experiment(experiment_id, new_experiment_name)
+    experiment = client.get_experiment(experiment_id)
+    assert experiment.name == new_experiment_name
+
+
+def test_get_run(client: MlflowClient, run: Run) -> None:
+    run_id = run.info.run_id
+    run = client.get_run(run_id)
+    assert run.info.run_id == run_id
+    assert len(run.data.params) == 0
+    assert len(run.data.metrics) == 0
+    assert run.info.lifecycle_stage == LifecycleStage.ACTIVE
+
+
+def test_single_metric_history(client: MlflowClient, run: Run) -> None:
+    run_id = run.info.run_id
+    client.log_metric(run_id, "metric1", 1)
+    metric_history = client.get_metric_history(run_id, "metric1")
+    assert len(metric_history) == 1
+    assert metric_history[0].step == 0
+    assert metric_history[0].value == 1
+
+
+def test_multiple_metric_history(client: MlflowClient, run: Run) -> None:
+    run_id = run.info.run_id
+    client.log_metric(run_id, "metric1", 1)
+    client.log_metric(run_id, "metric1", 2)
+    metric_history = client.get_metric_history(run_id, "metric1")
+    assert len(metric_history) == 2
+    assert metric_history[0].step == 0
+    assert metric_history[0].value == 1
+    assert metric_history[1].step == 0
+    assert metric_history[1].value == 2

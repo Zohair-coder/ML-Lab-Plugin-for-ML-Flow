@@ -18,15 +18,15 @@ class MlLabArtifactRepository(ArtifactRepository):
     def __init__(self, artifact_uri):
         # TODO: find a solution for not hardcoding the url and token
         super().__init__(artifact_uri)
-        url = "https://ls6415.wdf.sap.corp:8076/api"
+        url = "http://localhost:30010/api"
         session = BaseUrlSession(base_url=url)
-        token = "da99c5846720f25900299dc89753df7d87a29e72"
+        token = "4239a609f81848440c1a4479492cc8fb5a320ccc"
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         file_client = FileClient(session)
         self.project_id = "test-project-id"
         self.file_client = file_client
-        self.artifact_uri = artifact_uri[len("ml-lab:"):]
+        self.artifact_uri = artifact_uri[len("ml-lab:/"):]
 
     def log_artifact(self, local_file, artifact_path=None):
         verify_artifact_path(artifact_path)
@@ -41,9 +41,9 @@ class MlLabArtifactRepository(ArtifactRepository):
         # Posix paths work fine on windows but just in case we normalize it here.
         if artifact_path:
             artifact_path = os.path.normpath(artifact_path)
-
-        self.file_client.upload_file(
-            project_id=self.project_id, file_key=artifact_path, file_stream=open(local_file, "rb"))
+        with open(local_file, "rb") as f:
+            self.file_client.upload_file(
+                project_id=self.project_id, file_key=artifact_path, file_stream=f)
 
     def log_artifacts(self, local_dir, artifact_path=None):
         local_dir = os.path.abspath(local_dir)
@@ -72,7 +72,7 @@ class MlLabArtifactRepository(ArtifactRepository):
             project_id=self.project_id, prefix=prefix)
         infos = []
         for file in files:
-            characters_to_remove = len(self.artifact_uri)
+            characters_to_remove = len(self.artifact_uri)+1
             if path:
                 # remove path + trailing slash
                 characters_to_remove += len(path)+1
