@@ -28,8 +28,7 @@ class MlLabArtifactRepository(ArtifactRepository):
         session.verify = False  # Workaround for development if SAP certificate is not installed
         file_client = FileClient(session)
         self.file_client = file_client
-        self.artifact_uri = artifact_uri[len(
-            "{}://".format(parse_result.scheme)):]
+        self.artifact_uri = artifact_uri[len(parse_result.scheme + "://"):]
 
     def log_artifact(self, local_file, artifact_path=None):
         verify_artifact_path(artifact_path)
