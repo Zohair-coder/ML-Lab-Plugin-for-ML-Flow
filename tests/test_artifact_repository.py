@@ -17,8 +17,9 @@ def artifacts_server():
     api_key = "4239a609f81848440c1a4479492cc8fb5a320ccc"
     project_id = "test-project-id"
     port = get_safe_port()
-    artifact_uri = "ml-lab://localhost:30010/{}/{}".format(
-        project_id, api_key)
+    os.environ["LAB_API_TOKEN"] = api_key
+    artifact_uri = "ml-lab://localhost:30010/{}".format(
+        project_id)
     # artifact_uri = "."
     process = launch_artifact_repository_test_server(artifact_uri, port)
     mlflow.set_tracking_uri("http://localhost:{}".format(port))
@@ -230,3 +231,10 @@ def test_download_artifact_with_no_dst_dir(client: MlflowClient, run: Run, tmp_p
     client.download_artifacts(run.info.run_id, artifact_path, None)
     downloaded_file = tmp_path / artifact_path
     assert downloaded_file.exists()
+
+
+def test_list_artifacts_on_file_returns_empty_list(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+    text_file_name = str(uuid.uuid4())
+    file = create_text_file(tmp_path, text_file_name)
+    mlflow.log_artifact(file)
+    assert len(client.list_artifacts(run.info.run_id, text_file_name)) == 0

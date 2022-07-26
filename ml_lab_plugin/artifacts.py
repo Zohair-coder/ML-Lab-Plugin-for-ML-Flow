@@ -27,7 +27,7 @@ class MlLabArtifactRepository(ArtifactRepository):
         url = "http://{}/api".format(parse_result.netloc)
         session = BaseUrlSession(base_url=url)
         self.project_id = parse_result.path.split("/")[1]
-        token = parse_result.path.split("/")[2]
+        token = os.environ["LAB_API_TOKEN"]
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         file_client = FileClient(session)
@@ -85,11 +85,12 @@ class MlLabArtifactRepository(ArtifactRepository):
         print("========================")
         if path:
             path = os.path.normpath(path)
-            prefix = os.path.join(self.artifact_uri, path)
+            prefix = os.path.join(self.artifact_uri, path) + "/"
         else:
             prefix = self.artifact_uri
         files = self.file_client.list_files(
             project_id=self.project_id, prefix=prefix)
+
         infos = []
         for file in files:
             characters_to_remove = len(self.artifact_uri)+1

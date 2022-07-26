@@ -3,6 +3,7 @@ import logging
 import uuid
 from typing import Optional
 from urllib import parse
+import os
 
 import mlflow.protos.databricks_pb2 as databricks_pb2
 from contaxy.clients import JsonDocumentClient
@@ -38,10 +39,9 @@ class MlLabTrackingStore(AbstractStore):
         self.store_uri = store_uri
         self.artifact_root_uri = artifact_uri
         parse_result = parse.urlparse(self.store_uri)
-        url = "http://{}/api".format(parse_result.netloc)
         session = BaseUrlSession(base_url=url)
         self.project_id = parse_result.path.split("/")[1]
-        token = parse_result.path.split("/")[2]
+        token = os.environ["LAB_API_TOKEN"]
         session.headers = {"Authorization": f"Bearer {token}"}
         session.verify = False  # Workaround for development if SAP certificate is not installed
         json_client = JsonDocumentClient(session)
