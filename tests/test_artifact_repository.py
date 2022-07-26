@@ -220,3 +220,13 @@ def test_download_multiple_artifacts_in_nested_directory(client: MlflowClient, r
     client.download_artifacts(run.info.run_id, "artifact_dir2", download_dir)
     assert (download_dir / "artifact_dir2" / text_file1_name).exists()
     assert (download_dir / "artifact_dir2" / text_file2_name).exists()
+
+
+def test_download_artifact_with_no_dst_dir(client: MlflowClient, run: Run, tmp_path: pathlib.Path) -> None:
+    text_file_name = str(uuid.uuid4())
+    file = create_text_file(tmp_path, text_file_name)
+    mlflow.log_artifact(file)
+    artifact_path = client.list_artifacts(run.info.run_id)[0].path
+    client.download_artifacts(run.info.run_id, artifact_path, None)
+    downloaded_file = tmp_path / artifact_path
+    assert downloaded_file.exists()

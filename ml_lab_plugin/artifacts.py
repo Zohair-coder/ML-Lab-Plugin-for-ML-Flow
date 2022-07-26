@@ -17,6 +17,10 @@ class MlLabArtifactRepository(ArtifactRepository):
     is_plugin = True
 
     def __init__(self, artifact_uri):
+        print("========================")
+        print("INITIALIZED ARTIFACT REPO")
+        print("artifact_uri:", artifact_uri)
+        print("========================")
         # TODO: find a solution for not hardcoding the url and token
         super().__init__(artifact_uri)
         parse_result = parse.urlparse(artifact_uri)
@@ -31,6 +35,11 @@ class MlLabArtifactRepository(ArtifactRepository):
         self.artifact_uri = artifact_uri[len(parse_result.scheme + "://"):]
 
     def log_artifact(self, local_file, artifact_path=None):
+        print("========================")
+        print("LOG ARTIFACT")
+        print("local_file:", local_file)
+        print("artifact_path:", artifact_path)
+        print("========================")
         verify_artifact_path(artifact_path)
         file_name = os.path.basename(local_file)
         if artifact_path:
@@ -48,6 +57,11 @@ class MlLabArtifactRepository(ArtifactRepository):
                 project_id=self.project_id, file_key=artifact_path, file_stream=f)
 
     def log_artifacts(self, local_dir, artifact_path=None):
+        print("========================")
+        print("LOG ARTIFACTS")
+        print("local_dir:", local_dir)
+        print("artifact_path:", artifact_path)
+        print("========================")
         local_dir = os.path.abspath(local_dir)
         for root, _, filenames in os.walk(local_dir):
             if root == local_dir:
@@ -65,6 +79,10 @@ class MlLabArtifactRepository(ArtifactRepository):
     def list_artifacts(self, path):
         # NOTE: The path is expected to be in posix format.
         # Posix paths work fine on windows but just in case we normalize it here.
+        print("========================")
+        print("LIST ARTIFACTS")
+        print("path:", path)
+        print("========================")
         if path:
             path = os.path.normpath(path)
             prefix = os.path.join(self.artifact_uri, path)
@@ -89,6 +107,11 @@ class MlLabArtifactRepository(ArtifactRepository):
         return infos
 
     def _download_file(self, remote_file_path, local_path):
+        print("========================")
+        print("DOWNLOAD FILE")
+        print("remote_file_path:", remote_file_path)
+        print("local_path:", local_path)
+        print("========================")
         stream = self.file_client.download_file(
             project_id=self.project_id, file_key=os.path.join(self.artifact_uri, remote_file_path))
         with open(local_path, "wb") as f:
@@ -110,6 +133,11 @@ class MlLabArtifactRepository(ArtifactRepository):
 
         :return: Absolute path of the local filesystem location containing the desired artifacts.
         """
+        print("========================")
+        print("DOWNLOAD ARTIFACTS")
+        print("artifact_path:", artifact_path)
+        print("dst_path:", dst_path)
+        print("========================")
         # Represents an in-progress file artifact download to a local filesystem location
         InflightDownload = namedtuple(
             "InflightDownload",
@@ -138,6 +166,11 @@ class MlLabArtifactRepository(ArtifactRepository):
                                        subdirectories.
             :return: A local filesystem path referring to the downloaded file.
             """
+            print("========================")
+            print("ASYNC DOWNLOAD ARTIFACT")
+            print("src_artifact_path:", src_artifact_path)
+            print("dst_local_dir_path:", dst_local_dir_path)
+            print("========================")
             inflight_downloads = []
             local_destination_file_path = self._create_download_destination(
                 src_artifact_path=src_artifact_path, dst_local_dir_path=dst_local_dir_path
@@ -180,6 +213,11 @@ class MlLabArtifactRepository(ArtifactRepository):
                      `InflightDownload` objects, each of which represents an inflight asynchronous
                      download operation for a file in the specified artifact directory.
             """
+            print("========================")
+            print("ASYNC DOWNLOAD ARTIFACT DIR")
+            print("src_artifact_dir_path:", src_artifact_dir_path)
+            print("dst_local_dir_path:", dst_local_dir_path)
+            print("========================")
             local_dir = os.path.join(dst_local_dir_path, src_artifact_dir_path)
             inflight_downloads = []
             dir_content = [  # prevent infinite loop, sometimes the dir is recursively included

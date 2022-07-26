@@ -14,9 +14,9 @@
       "args": [
         "server",
         "--backend-store-uri",
-        "ml-lab:/test/route",
+        "ml-lab://localhost:30010/test-project-id/4239a609f81848440c1a4479492cc8fb5a320ccc",
         "--default-artifact-root",
-        "ml-lab:/test/route",
+        "ml-lab://localhost:30010/test-project-id/4239a609f81848440c1a4479492cc8fb5a320ccc",
         "--serve-artifacts",
         "--port",
         "5001"

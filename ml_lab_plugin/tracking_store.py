@@ -26,7 +26,8 @@ from mlflow.utils.validation import (_validate_batch_log_data,
                                      _validate_list_experiments_max_results,
                                      _validate_metric_name,
                                      _validate_param_keys_unique,
-                                     _validate_run_id, _validate_tag_name)
+                                     _validate_run_id,
+                                     _validate_tag_name)
 
 
 class MlLabTrackingStore(AbstractStore):
@@ -47,6 +48,11 @@ class MlLabTrackingStore(AbstractStore):
         self.json_client = json_client
 
     def list_experiments(self, view_type: ViewType = ViewType.ACTIVE_ONLY, max_results: int = None, page_token: bytes = None) -> PagedList:
+        print("===== list_experiments =====")
+        print(f"view_type: {view_type}")
+        print(f"max_results: {max_results}")
+        print(f"page_token: {page_token}")
+        print("=============================")
         _validate_list_experiments_max_results(max_results)
         rsl = []
         if view_type == ViewType.ACTIVE_ONLY or view_type == ViewType.ALL:
@@ -78,6 +84,8 @@ class MlLabTrackingStore(AbstractStore):
             return PagedList(experiments, None)
 
     def _get_active_experiments(self) -> list[str]:
+        print("===== _get_active_experiments =====")
+        print("=============================")
         json_docs = self.json_client.list_json_documents(
             self.project_id, "experiments")
 
@@ -90,6 +98,8 @@ class MlLabTrackingStore(AbstractStore):
         return experiments
 
     def _get_deleted_experiments(self) -> list[str]:
+        print("===== _get_deleted_experiments =====")
+        print("=============================")
         json_docs = self.json_client.list_json_documents(
             self.project_id, "experiments")
 
@@ -102,6 +112,11 @@ class MlLabTrackingStore(AbstractStore):
         return experiments
 
     def create_experiment(self, name: str, artifact_location: str = None, tags: Optional[list[ExperimentTag]] = None) -> str:
+        print("===== create_experiment =====")
+        print(f"name: {name}")
+        print(f"artifact_location: {artifact_location}")
+        print(f"tags: {tags}")
+        print("=============================")
         _validate_experiment_name(name)
         self._validate_experiment_does_not_exist(name)
         # Get all existing experiments and find the one with largest numerical ID.
@@ -118,6 +133,12 @@ class MlLabTrackingStore(AbstractStore):
         artifact_uri = artifact_uri or append_to_uri_path(
             self.artifact_root_uri, str(experiment_id)
         )
+        print("===== _create_experiment_with_id =====")
+        print(f"name: {name}")
+        print(f"experiment_id: {experiment_id}")
+        print(f"artifact_uri: {artifact_uri}")
+        print(f"tags: {tags}")
+        print("=============================")
         experiment_dict = {
             "experiment_id": experiment_id,
             "name": name,
@@ -130,6 +151,10 @@ class MlLabTrackingStore(AbstractStore):
         return experiment_id
 
     def set_experiment_tag(self, experiment_id: str, tag: ExperimentTag) -> None:
+        print("===== set_experiment_tag =====")
+        print(f"experiment_id: {experiment_id}")
+        print(f"tag: {tag}")
+        print("=============================")
         _validate_tag_name(tag.key)
         experiment = self.get_experiment(experiment_id)
         if experiment.lifecycle_stage != LifecycleStage.ACTIVE:
@@ -146,6 +171,9 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "experiments", experiment_id, json.dumps({"tags": tags}))
 
     def _validate_experiment_does_not_exist(self, name: str) -> None:
+        print("===== _validate_experiment_does_not_exist =====")
+        print(f"name: {name}")
+        print("=============================")
         experiment = self.get_experiment_by_name(name)
         if experiment is not None:
             if experiment.lifecycle_stage == LifecycleStage.DELETED:
@@ -170,6 +198,10 @@ class MlLabTrackingStore(AbstractStore):
         :param experiment_id: Integer id for the experiment
         :return: A single Experiment object if it exists, otherwise raises an Exception.
         """
+        print("===== get_experiment =====")
+        print(f"experiment_id: {experiment_id}")
+        print("=============================")
+
         experiment_id = MlLabTrackingStore.DEFAULT_EXPERIMENT_ID if experiment_id is None else experiment_id
         experiment = self._get_experiment(experiment_id)
         if experiment is None:
@@ -180,6 +212,10 @@ class MlLabTrackingStore(AbstractStore):
         return experiment
 
     def _get_experiment(self, experiment_id: str, view_type: ViewType = ViewType.ALL) -> Optional[Experiment]:
+        print("===== _get_experiment =====")
+        print(f"experiment_id: {experiment_id}")
+        print(f"view_type: {view_type}")
+        print("=============================")
         _validate_experiment_id(experiment_id)
         meta = self._get_experiment_metadata(experiment_id)
         meta["tags"] = [ExperimentTag(key, value)
@@ -197,11 +233,18 @@ class MlLabTrackingStore(AbstractStore):
         return experiment
 
     def _get_experiment_metadata(self, experiment_id: str) -> dict:
+        print("===== _get_experiment_metadata =====")
+        print(f"experiment_id: {experiment_id}")
+        print("=============================")
+
         response = self.json_client.get_json_document(
             project_id=self.project_id, collection_id="experiments", key=experiment_id)
         return json.loads(response.json_value)
 
     def _get_experiment_tags(self, experiment_id: str) -> list[dict[str, str]]:
+        print("===== _get_experiment_tags =====")
+        print(f"experiment_id: {experiment_id}")
+        print("=============================")
         try:
             response = self.json_client.get_json_document(
                 project_id=self.project_id, collection_id="experiments_tags", key=experiment_id)
@@ -215,6 +258,9 @@ class MlLabTrackingStore(AbstractStore):
         return tags
 
     def delete_experiment(self, experiment_id: str) -> None:
+        print("===== delete_experiment =====")
+        print(f"experiment_id: {experiment_id}")
+        print("=============================")
         json_document = self.json_client.get_json_document(
             self.project_id, "experiments", experiment_id)
         actual_json = json.loads(json_document.json_value)
@@ -228,6 +274,9 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "experiments", experiment_id, json.dumps(actual_json))
 
     def restore_experiment(self, experiment_id: str) -> None:
+        print("===== restore_experiment =====")
+        print(f"experiment_id: {experiment_id}")
+        print("=============================")
         json_document = self.json_client.get_json_document(
             self.project_id, "experiments", experiment_id)
         actual_json = json.loads(json_document.json_value)
@@ -241,6 +290,10 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "experiments", experiment_id, json.dumps(actual_json))
 
     def rename_experiment(self, experiment_id: str, new_name: str) -> None:
+        print("===== rename_experiment =====")
+        print(f"experiment_id: {experiment_id}")
+        print(f"new_name: {new_name}")
+        print("=============================")
         json_document = self.json_client.get_json_document(
             self.project_id, "experiments", experiment_id)
         actual_json = json.loads(json_document.json_value)
@@ -257,6 +310,10 @@ class MlLabTrackingStore(AbstractStore):
         """
         Note: Will get both active and deleted runs.
         """
+        print("===== get_run =====")
+        print(f"run_id: {run_id}")
+        print("=============================")
+
         _validate_run_id(run_id)
         run_info = self._get_run_info(run_id)
         if run_info is None:
@@ -267,12 +324,20 @@ class MlLabTrackingStore(AbstractStore):
         return self._get_run_from_info(run_info)
 
     def _get_run_from_info(self, run_info: RunInfo) -> Run:
+        print("===== _get_run_from_info =====")
+        print(f"run_info: {run_info}")
+        print("=============================")
+
         metrics = self._get_all_metrics(run_info)
         params = self._get_all_params(run_info)
         tags = self._get_all_tags(run_info)
         return Run(run_info, RunData(metrics, params, tags))
 
     def _get_all_metrics(self, run_info: RunInfo) -> list[Metric]:
+        print("===== _get_all_metrics =====")
+        print(f"run_info: {run_info}")
+        print("=============================")
+
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "runs", run_info.run_id)
@@ -281,15 +346,19 @@ class MlLabTrackingStore(AbstractStore):
 
         response_json = json.loads(response.json_value)
         metrics_dict: dict = response_json["metrics"]
-        ("Metrics: {}".format(metrics_dict))
         latest_metrics: list[Metric] = []
         for metric_key, infos in metrics_dict.items():
-            latest_metric = infos[-1]
+            if len(infos) > 0:
+                latest_metric = infos[-1]
             latest_metrics.append(
                 Metric(metric_key, latest_metric["value"], latest_metric["timestamp"], latest_metric["step"]))
         return latest_metrics
 
     def _get_all_params(self, run_info: RunInfo) -> list[Param]:
+        print("===== _get_all_params =====")
+        print(f"run_info: {run_info}")
+        print("=============================")
+
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "runs", run_info.run_id)
@@ -304,6 +373,10 @@ class MlLabTrackingStore(AbstractStore):
         return params
 
     def _get_all_tags(self, run_info: RunInfo) -> list[RunTag]:
+        print("===== _get_all_tags =====")
+        print(f"run_info: {run_info}")
+        print("=============================")
+
         try:
             response = self.json_client.get_json_document(
                 self.project_id, "runs", run_info.run_id)
@@ -321,11 +394,19 @@ class MlLabTrackingStore(AbstractStore):
         """
         Note: Will get both active and deleted runs.
         """
+        print("===== _get_run_info =====")
+        print(f"run_uuid: {run_uuid}")
+        print("=============================")
         response = self.json_client.get_json_document(
             project_id=self.project_id, collection_id="runs", key=run_uuid)
         return RunInfo.from_dictionary(json.loads(response.json_value))
 
     def update_run_info(self, run_id: str, run_status: RunStatus, end_time: str) -> RunInfo:
+        print("===== update_run_info =====")
+        print(f"run_id: {run_id}")
+        print(f"run_status: {run_status}")
+        print(f"end_time: {end_time}")
+        print("=============================")
         _validate_run_id(run_id)
         json_document = self.json_client.get_json_document(
             self.project_id, "runs", run_id)
@@ -338,6 +419,12 @@ class MlLabTrackingStore(AbstractStore):
         return RunInfo.from_dictionary(response_json)
 
     def create_run(self, experiment_id: str, user_id: str, start_time: str, tags: list[RunTag] = None) -> Run:
+        print("===== create_run =====")
+        print(f"experiment_id: {experiment_id}")
+        print(f"user_id: {user_id}")
+        print(f"start_time: {start_time}")
+        print(f"tags: {tags}")
+        print("=============================")
         experiment_id = MlLabTrackingStore.DEFAULT_EXPERIMENT_ID if experiment_id is None else experiment_id
         run_uuid = uuid.uuid4().hex
         tags_dict = dict()
@@ -364,6 +451,10 @@ class MlLabTrackingStore(AbstractStore):
         return self.get_run(run_uuid)
 
     def delete_run(self, run_id: str) -> None:
+        print("===== delete_run =====")
+        print(f"run_id: {run_id}")
+        print("=============================")
+
         json_document = self.json_client.get_json_document(
             self.project_id, "runs", run_id)
         actual_json = json.loads(json_document.json_value)
@@ -377,6 +468,10 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "runs", run_id, json.dumps(actual_json))
 
     def restore_run(self, run_id: str) -> None:
+        print("===== restore_run =====")
+        print(f"run_id: {run_id}")
+        print("=============================")
+
         json_document = self.json_client.get_json_document(
             self.project_id, "runs", run_id)
         actual_json = json.loads(json_document.json_value)
@@ -390,12 +485,21 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "runs", run_id, json.dumps(actual_json))
 
     def get_metric_history(self, run_id: str, metric_key: str) -> list[Metric]:
+        print("===== get_metric_history =====")
+        print(f"run_id: {run_id}")
+        print(f"metric_key: {metric_key}")
+        print("=============================")
+
         _validate_run_id(run_id)
         _validate_metric_name(metric_key)
         run_info = self._get_run_info(run_id)
         return self._get_metric_history(run_info, metric_key)
 
     def _get_metric_history(self, run_info: RunInfo, metric_key: str) -> list[Metric]:
+        print("===== _get_metric_history =====")
+        print(f"run_info: {run_info}")
+        print(f"metric_key: {metric_key}")
+        print("=============================")
         response = self.json_client.get_json_document(
             self.project_id, "runs", run_info.run_uuid)
         metrics_dict = json.loads(response.json_value)["metrics"]
@@ -407,6 +511,14 @@ class MlLabTrackingStore(AbstractStore):
         return metrics_history
 
     def _search_runs(self, experiment_ids: list[str], filter_string: str, run_view_type: ViewType, max_results: int, order_by: list, page_token: Optional[bytes]) -> tuple[list[Run], Optional[bytes]]:
+        print("===== _search_runs =====")
+        print(f"experiment_ids: {experiment_ids}")
+        print(f"filter_string: {filter_string}")
+        print(f"run_view_type: {run_view_type}")
+        print(f"max_results: {max_results}")
+        print(f"order_by: {order_by}")
+        print(f"page_token: {page_token}")
+        print("=============================")
         if max_results > SEARCH_MAX_RESULTS_THRESHOLD:
             raise MlflowException(
                 "Invalid value for request parameter max_results. It must be at "
@@ -425,6 +537,10 @@ class MlLabTrackingStore(AbstractStore):
         return runs, next_page_token
 
     def _list_run_infos(self, experiment_id: str, view_type: ViewType) -> list[RunInfo]:
+        print("===== _list_run_infos =====")
+        print(f"experiment_id: {experiment_id}")
+        print(f"view_type: {view_type}")
+        print("=============================")
         response = self.json_client.list_json_documents(
             self.project_id, "runs")
         runs = []
@@ -436,6 +552,12 @@ class MlLabTrackingStore(AbstractStore):
         return runs
 
     def log_batch(self, run_id: str, metrics: list[Metric], params: list[Param], tags: list[RunTag]) -> None:
+        print("===== log_batch =====")
+        print(f"run_id: {run_id}")
+        print(f"metrics: {metrics}")
+        print(f"params: {params}")
+        print(f"tags: {tags}")
+        print("=============================")
         _validate_run_id(run_id)
         _validate_batch_log_data(metrics, params, tags)
         _validate_batch_log_limits(metrics, params, tags)
@@ -453,6 +575,11 @@ class MlLabTrackingStore(AbstractStore):
             raise MlflowException(e, INTERNAL_ERROR)
 
     def _log_run_param(self, run_info: RunInfo, param: Param) -> None:
+        print("===== _log_run_param =====")
+        print(f"run_info: {run_info}")
+        print(f"param: {param}")
+        print("=============================")
+
         params: list[Param] = self._get_all_params(run_info)
         params.append(Param(param.key, param.value))
         params_dict: dict = {p.key: p.value for p in params}
@@ -460,6 +587,11 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "runs", run_info.run_uuid, json.dumps({"params": params_dict}))
 
     def _log_run_metric(self, run_info: RunInfo, metric: Metric) -> None:
+        print("===== _log_run_metric =====")
+        print(f"run_info: {run_info}")
+        print(f"metric: {metric}")
+        print("=============================")
+
         run: dict = json.loads(self.json_client.get_json_document(
             self.project_id, "runs", run_info.run_uuid).json_value)
         run_metrics = run["metrics"]
@@ -471,14 +603,38 @@ class MlLabTrackingStore(AbstractStore):
             self.project_id, "runs", run_info.run_uuid, json.dumps({"metrics": {metric.key: run_metrics[metric.key]}}))
 
     def _set_run_tag(self, run_info: RunInfo, tag: RunTag) -> None:
+        print("===== _set_run_tag =====")
+        print(f"run_info: {run_info}")
+        print(f"tag: {tag}")
+        print("=============================")
         tags: list[RunTag] = self._get_all_tags(run_info)
         tags.append(RunTag(tag.key, tag.value))
         tags_dict: dict = {t.key: t.value for t in tags}
         self.json_client.update_json_document(
             self.project_id, "runs", run_info.run_uuid, json.dumps({"tags": tags_dict}))
 
+    def delete_tag(self, run_id: str, key: str) -> None:
+        print("===== delete_tag =====")
+        print(f"run_id: {run_id}")
+        print(f"key: {key}")
+        print("=============================")
+        _validate_run_id(run_id)
+        run_info = self._get_run_info(run_id)
+        check_run_is_active(run_info)
+        run: dict = json.loads(self.json_client.get_json_document(
+            self.project_id, "runs", run_info.run_uuid).json_value)
+        tags: dict = run["tags"]
+        if key in tags:
+            del tags[key]
+            self.json_client.update_json_document(
+                self.project_id, "runs", run_info.run_uuid, json.dumps({"tags": tags}))
+
 
 def _read_persisted_experiment_dict(experiment_dict: dict) -> Experiment:
+    print("===== _read_persisted_experiment_dict =====")
+    print(f"experiment_dict: {experiment_dict}")
+    print("=============================")
+
     dict_copy = experiment_dict.copy()
 
     # 'experiment_id' was changed from int to string, so we must cast to string
