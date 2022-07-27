@@ -8,7 +8,7 @@ setup(
     packages=find_packages(),
     # Require MLflow as a dependency of the plugin, so that plugin users can simply install
     # the plugin & then immediately use it with MLflow
-    install_requires=["mlflow"],
+    install_requires=["mlflow", "contaxy"],
     entry_points={
         # Define a Tracking Store plugin for tracking URIs with scheme 'ml-lab'
         "mlflow.tracking_store": "ml-lab=ml_lab_plugin.tracking_store:MlLabTrackingStore",
