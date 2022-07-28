@@ -113,10 +113,14 @@ class MlLabArtifactRepository(ArtifactRepository):
         print("remote_file_path:", remote_file_path)
         print("local_path:", local_path)
         print("========================")
+        print("PROJECT ID: ", self.project_id)
+        print("FILE KEY: ", os.path.join(self.artifact_uri, remote_file_path))
         stream = self.file_client.download_file(
             project_id=self.project_id, file_key=os.path.join(self.artifact_uri, remote_file_path))
+        print("Downloaded file from contaxy")
         with open(local_path, "wb") as f:
             for chunk in stream:
+                print("CHUNK: ", chunk)
                 f.write(chunk)
 
     def download_artifacts(self, artifact_path, dst_path=None):

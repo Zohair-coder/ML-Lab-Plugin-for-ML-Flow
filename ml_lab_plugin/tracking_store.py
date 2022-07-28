@@ -36,6 +36,10 @@ class MlLabTrackingStore(AbstractStore):
 
     def __init__(self, store_uri: str = None, artifact_uri: str = None) -> None:
         # TODO: find a solution for not hardcoding the url and token
+        print("===== __init__ =====")
+        print(f"store_uri: {store_uri}")
+        print(f"artifact_uri: {artifact_uri}")
+        print("=============================")
         self.store_uri = store_uri
         self.artifact_root_uri = artifact_uri
         parse_result = parse.urlparse(self.store_uri)
