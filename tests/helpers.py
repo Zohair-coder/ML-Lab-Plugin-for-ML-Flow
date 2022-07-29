@@ -14,12 +14,14 @@ def get_safe_port():
     return port
 
 
-def launch_artifact_repository_test_server(default_artifact_root, port=5001):
+def launch_artifact_repository_test_server(artifacts_destination, port=5001):
     cmd = [
         "mlflow",
         "server",
+        "--artifacts-destination",
+        artifacts_destination,
         "--default-artifact-root",
-        default_artifact_root,
+        "mlflow-artifacts:/projects/zohair/services/pylab-p-zohair-s-ml-flow-1c457/access/5001",
         "--serve-artifacts",
         "--port",
         str(port),
