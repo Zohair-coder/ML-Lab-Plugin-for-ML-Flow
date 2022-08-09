@@ -447,7 +447,7 @@ class MlLabTrackingStore(AbstractStore):
             "metrics": {},
             "params": {},
             "tags": tags_dict,
-            "artifact_uri": self.artifact_root_uri
+            "artifact_uri": os.path.join(self.artifact_root_uri, experiment_id, run_uuid, "artifacts")
         }
         json_data = json.dumps(data)
         self.json_client.create_json_document(

@@ -33,6 +33,8 @@ class MlLabArtifactRepository(ArtifactRepository):
         file_client = FileClient(session)
         self.file_client = file_client
         self.artifact_uri = artifact_uri[len(parse_result.scheme + "://"):]
+        self.default_artifact_root = 'projects/zohair/services/pylab-p-zohair-s-ml-flow-1c457/access/5001/'
+        self.store_prefix = 'mlflow-data'
 
     def log_artifact(self, local_file, artifact_path=None):
         print("========================")
@@ -40,13 +42,14 @@ class MlLabArtifactRepository(ArtifactRepository):
         print("local_file:", local_file)
         print("artifact_path:", artifact_path)
         print("========================")
+        artifact_path = artifact_path[len(self.default_artifact_root):]
         verify_artifact_path(artifact_path)
         file_name = os.path.basename(local_file)
         if artifact_path:
             artifact_path = os.path.join(
-                self.artifact_uri, artifact_path, file_name)
+                self.store_prefix, artifact_path, file_name)
         else:
-            artifact_path = os.path.join(self.artifact_uri, file_name)
+            artifact_path = os.path.join(self.store_prefix, file_name)
 
         # NOTE: The artifact_path is expected to be in posix format.
         # Posix paths work fine on windows but just in case we normalize it here.
@@ -84,16 +87,17 @@ class MlLabArtifactRepository(ArtifactRepository):
         print("path:", path)
         print("========================")
         if path:
+            path = path[len(self.default_artifact_root):]
             path = os.path.normpath(path)
-            prefix = os.path.join(self.artifact_uri, path) + "/"
+            prefix = os.path.join(self.store_prefix, path) + "/"
         else:
-            prefix = self.artifact_uri
+            prefix = self.store_prefix
         files = self.file_client.list_files(
             project_id=self.project_id, prefix=prefix)
 
         infos = []
         for file in files:
-            characters_to_remove = len(self.artifact_uri)+1
+            characters_to_remove = len(self.store_prefix)+1
             if path:
                 # remove path + trailing slash
                 characters_to_remove += len(path)+1
@@ -114,12 +118,13 @@ class MlLabArtifactRepository(ArtifactRepository):
         print("local_path:", local_path)
         print("========================")
         print("PROJECT ID: ", self.project_id)
-        print("FILE KEY: ", os.path.join(self.artifact_uri, remote_file_path))
+        remote_file_path = remote_file_path[len(self.default_artifact_root):]
+        print("FILE KEY: ", os.path.join(self.store_prefix, remote_file_path))
         stream = self.file_client.download_file(
-            project_id=self.project_id, file_key=os.path.join(self.artifact_uri, remote_file_path))
+            project_id=self.project_id, file_key=os.path.join(self.store_prefix, remote_file_path))
         print("Downloaded file from contaxy")
         with open(local_path, "wb") as f:
-            for chunk in stream:
+            for chunk in stream[0]:
                 print("CHUNK: ", chunk)
                 f.write(chunk)
 
