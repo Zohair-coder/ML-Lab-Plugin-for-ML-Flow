@@ -33,7 +33,8 @@ class MlLabArtifactRepository(ArtifactRepository):
         file_client = FileClient(session)
         self.file_client = file_client
         self.artifact_uri = artifact_uri[len(parse_result.scheme + "://"):]
-        self.default_artifact_root = 'projects/zohair/services/pylab-p-zohair-s-ml-flow-1c457/access/5001/'
+        self.default_artifact_root = 'projects/{}/services/pylab-p-{}-s-ml-flow-1c457/access/5001/'.format(
+            self.project_id, self.project_id)
         self.store_prefix = 'mlflow-data'
 
     def log_artifact(self, local_file, artifact_path=None):
