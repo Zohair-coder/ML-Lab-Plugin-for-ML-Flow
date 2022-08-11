@@ -25,6 +25,8 @@ class MlLabArtifactRepository(ArtifactRepository):
         super().__init__(artifact_uri)
         parse_result = parse.urlparse(artifact_uri)
         url = "http://{}/api".format(parse_result.netloc)
+        if "CONTAXY_API_ENDPOINT" in os.environ:
+            url = os.environ["CONTAXY_API_ENDPOINT"]
         session = BaseUrlSession(base_url=url)
         self.project_id = parse_result.path.split("/")[1]
         token = os.environ["LAB_API_TOKEN"]

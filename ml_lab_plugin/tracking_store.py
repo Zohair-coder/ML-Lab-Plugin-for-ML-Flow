@@ -44,6 +44,8 @@ class MlLabTrackingStore(AbstractStore):
         self.artifact_root_uri = artifact_uri
         parse_result = parse.urlparse(self.store_uri)
         url = "http://{}/api".format(parse_result.netloc)
+        if "CONTAXY_API_ENDPOINT" in os.environ:
+            url = os.environ["CONTAXY_API_ENDPOINT"]
         session = BaseUrlSession(base_url=url)
         self.project_id = parse_result.path.split("/")[1]
         token = os.environ["LAB_API_TOKEN"]
