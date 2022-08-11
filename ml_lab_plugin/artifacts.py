@@ -33,8 +33,10 @@ class MlLabArtifactRepository(ArtifactRepository):
         file_client = FileClient(session)
         self.file_client = file_client
         self.artifact_uri = artifact_uri[len(parse_result.scheme + "://"):]
-        self.default_artifact_root = 'projects/{}/services/pylab-p-{}-s-ml-flow-1c457/access/5001/'.format(
-            self.project_id, self.project_id)
+        self.default_artifact_root = 'projects/{}/services/{}/access/5001/'.format(
+            self.project_id,
+            os.getenv("CONTAXY_DEPLOYMENT_NAME", "pylab-p-{}-s-ml-flow-1c457".format(self.project_id))
+        )
         self.store_prefix = 'mlflow-data'
 
     def log_artifact(self, local_file, artifact_path=None):
@@ -98,10 +100,10 @@ class MlLabArtifactRepository(ArtifactRepository):
 
         infos = []
         for file in files:
-            characters_to_remove = len(self.store_prefix)+1
+            characters_to_remove = len(self.store_prefix) + 1
             if path:
                 # remove path + trailing slash
-                characters_to_remove += len(path)+1
+                characters_to_remove += len(path) + 1
             file_path = file.key[characters_to_remove:]
             if "/" in file_path:
                 folder_name = file_path.split("/")[0]
